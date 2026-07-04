@@ -7,19 +7,23 @@
 
 // Strip cities, venues, dates, punctuation noise from event names
 export function deriveTourKey(artistName, eventName) {
+  // v3.2 order-proof fingerprint — mirrors the server pipeline exactly:
+  // filler words removed, remaining tokens sorted alphabetically.
+  const STOP = ['tour','world','live','concert','show','the','a','an','in','at','on','of','and','with','presents','encore','day','vol']
   let s = String(eventName || '').toLowerCase()
   s = s
     .replace(/[<>\[\]（）()「」【】'"''""]/g, ' ')
-    .replace(/\b(in|at|live in|live at)\b\s+[a-zà-ž\s,.-]+$/i, ' ') // trailing "in Bangkok"
-    .replace(/\b(19|20)\d{2}\b/g, ' ')            // years
-    .replace(/\b(world|asia|europe|us|na)?\s*tour\b/g, ' tour ') // normalize tour word
-    .replace(/[–—\-:·|,]+/g, ' ')
+    .replace(/\b(19|20)\d{2}\b/g, ' ')
+    .replace(/[–—\-:·|,.!?]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-  // Drop the artist's own name from the key so "ITZY Tunnel Vision" == "Tunnel Vision"
   const artist = String(artistName || '').toLowerCase().trim()
-  if (artist) s = s.replace(new RegExp(`\\b${artist.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g'), ' ').replace(/\s+/g, ' ').trim()
-  const key = s.split(' ').filter(Boolean).slice(0, 6).join('-')
+  if (artist) {
+    const escaped = artist.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    s = s.replace(new RegExp(`\\b${escaped}\\b`, 'g'), ' ')
+  }
+  const uniq = [...new Set(s.split(/\s+/).filter(t => t && !STOP.includes(t) && t.length > 1))].sort()
+  const key = uniq.slice(0, 6).join('-')
   return `${artist.replace(/\s+/g, '-')}|${key || 'event'}`
 }
 

@@ -1,5 +1,5 @@
 // ============================================================
-// HYPERSYNC — SCHEDULE AUTOMATION v3 (tours edition)
+// HYPERSYNC — SCHEDULE AUTOMATION v3.2 (order-proof tours edition)
 // ============================================================
 // WHAT'S NEW vs v2:
 //  1. tour_key — one tour, many legs. Derived from event names.
@@ -48,21 +48,29 @@ const BATCH_SIZE = 8;
 // NOTE: keep this in sync with src/lib/tours.js on the frontend.
 // ============================================================
 function deriveTourKey(artistName, eventName) {
+  // v3.2: order-proof. Filler words out, remaining tokens SORTED, so
+  // "SYNK: COMPLæXITY World Tour" and "aespa LIVE TOUR - SYNK : COMPLæXITY"
+  // both collapse to the same fingerprint.
+  const STOP = ['tour','world','live','concert','show','the','a','an','in','at','on','of','and','with','presents','encore','day','vol'];
   let s = String(eventName || '').toLowerCase();
   s = s
     .replace(/[<>\[\]（）()「」【】'"''""]/g, ' ')
-    .replace(/\b(in|at|live in|live at)\b\s+[a-zà-ž\s,.-]+$/i, ' ')
     .replace(/\b(19|20)\d{2}\b/g, ' ')
-    .replace(/\b(world|asia|europe|us|na)?\s*tour\b/g, ' tour ')
-    .replace(/[–—\-:·|,]+/g, ' ')
+    .replace(/[–—\-:·|,\.!?]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   const artist = String(artistName || '').toLowerCase().trim();
   if (artist) {
     const escaped = artist.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    s = s.replace(new RegExp('\\b' + escaped + '\\b', 'g'), ' ').replace(/\s+/g, ' ').trim();
+    s = s.replace(new RegExp('\\b' + escaped + '\\b', 'g'), ' ');
   }
-  const key = s.split(' ').filter(Boolean).slice(0, 6).join('-');
+  const tokens = s.split(/\s+/).filter(function (t) {
+    return t && STOP.indexOf(t) < 0 && t.length > 1;
+  });
+  const uniq = [];
+  tokens.forEach(function (t) { if (uniq.indexOf(t) < 0) uniq.push(t); });
+  uniq.sort();
+  const key = uniq.slice(0, 6).join('-');
   return artist.replace(/\s+/g, '-') + '|' + (key || 'event');
 }
 
@@ -143,9 +151,12 @@ function processArtist(artist, CONFIG) {
 
       // v3 DEDUP: same tour + same date = same event. City spelling irrelevant.
       const match = existing.find(function (e) {
-        return e.event_date === event.event_date &&
-          (e.tour_key === tourKey ||
-            (e.city && event.city && e.city.toLowerCase().trim() === event.city.toLowerCase().trim()));
+        if (e.event_date !== event.event_date) return false;
+        if (e.tour_key === tourKey) return true;
+        if (e.city && event.city && e.city.toLowerCase().trim() === event.city.toLowerCase().trim()) return true;
+        // v3.2: same date + same venue = same show, whatever it's called this week
+        if (e.venue && event.venue && e.venue.toLowerCase().trim() === event.venue.toLowerCase().trim()) return true;
+        return false;
       });
 
       if (match) {
@@ -169,6 +180,22 @@ function processArtist(artist, CONFIG) {
           Logger.log('  🎨 Poster found via ticket page');
         }
         Utilities.sleep(500);
+      }
+
+      // v3.1 VERIFICATION GATE: narrow grounded re-check before anything enters the base.
+      // "Find all events" invites imagination; "is THIS show on THIS date" invites facts.
+      const verdict = verifyEventDate(artist, event, CONFIG);
+      Utilities.sleep(800);
+      if (!verdict.confirmed) {
+        skipped++;
+        Logger.log('  ✗ UNVERIFIED, skipped: ' + event.event_name + ' @ ' + (event.city || '?') + ' on ' + event.event_date);
+        continue;
+      }
+      if (verdict.date && verdict.date !== event.event_date) {
+        Logger.log('  ⚠ Date corrected: ' + event.event_date + ' → ' + verdict.date);
+        event.event_date = verdict.date;
+        const todayNow = new Date().toISOString().split('T')[0];
+        if (event.event_date < todayNow) { skipped++; continue; }
       }
 
       const newId = generateId();
@@ -197,18 +224,20 @@ function processArtist(artist, CONFIG) {
 // ONE-TIME CLEANUP TOOLS — run each ONCE, in this order
 // ============================================================
 
-// 1) Tag every existing row with its tour_key
+// 1) Tag every existing row with its tour_key — BATCHED (10/request), resume-safe
 function backfillTourKeys() {
   const CONFIG = getScheduleConfig();
-  Logger.log('=== BACKFILL tour_key ===');
+  Logger.log('=== BACKFILL tour_key (batched) ===');
 
   const jobs = [
-    { table: TABLES.SCHEDULE,      artistField: 'artist_name',    nameField: 'event_name' },
+    { table: TABLES.SCHEDULE,      artistField: 'artist_name',     nameField: 'event_name' },
     { table: TABLES.ANNOUNCEMENTS, artistField: 'override_artist', nameField: 'override_title' },
   ];
 
   for (const job of jobs) {
-    let offset = null, tagged = 0;
+    // Collect all untagged rows first
+    const pending = [];
+    let offset = null;
     do {
       let url = 'https://api.airtable.com/v0/' + CONFIG.AIRTABLE_BASE_ID + '/' + job.table + '?pageSize=100';
       if (offset) url += '&offset=' + offset;
@@ -216,21 +245,33 @@ function backfillTourKeys() {
       if (res.getResponseCode() !== 200) break;
       const data = JSON.parse(res.getContentText());
       offset = data.offset || null;
-
       for (const r of (data.records || [])) {
         if (r.fields.tour_key) continue;
-        const key = deriveTourKey(r.fields[job.artistField] || '', r.fields[job.nameField] || '');
-        UrlFetchApp.fetch('https://api.airtable.com/v0/' + CONFIG.AIRTABLE_BASE_ID + '/' + job.table + '/' + r.id, {
-          method: 'PATCH',
-          headers: { Authorization: 'Bearer ' + CONFIG.AIRTABLE_WRITE_TOKEN, 'Content-Type': 'application/json' },
-          payload: JSON.stringify({ fields: { tour_key: key } }),
-          muteHttpExceptions: true,
+        pending.push({
+          id: r.id,
+          fields: { tour_key: deriveTourKey(r.fields[job.artistField] || '', r.fields[job.nameField] || '') },
         });
-        tagged++;
-        Utilities.sleep(220);
       }
     } while (offset);
-    Logger.log('  ' + job.table + ': tagged ' + tagged + ' rows');
+
+    Logger.log(job.table + ': ' + pending.length + ' rows need tagging');
+
+    // PATCH in batches of 10
+    let tagged = 0;
+    for (let i = 0; i < pending.length; i += 10) {
+      const batch = pending.slice(i, i + 10);
+      const res = UrlFetchApp.fetch('https://api.airtable.com/v0/' + CONFIG.AIRTABLE_BASE_ID + '/' + job.table, {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + CONFIG.AIRTABLE_WRITE_TOKEN, 'Content-Type': 'application/json' },
+        payload: JSON.stringify({ records: batch }),
+        muteHttpExceptions: true,
+      });
+      if (res.getResponseCode() === 200) tagged += batch.length;
+      else Logger.log('  batch error: ' + res.getContentText().substring(0, 150));
+      if (i % 100 === 0) Logger.log('  ' + job.table + ': ' + tagged + ' / ' + pending.length);
+      Utilities.sleep(250);
+    }
+    Logger.log('✓ ' + job.table + ': tagged ' + tagged);
   }
   Logger.log('=== Backfill done. Now run cleanupDuplicates() ===');
 }
@@ -496,6 +537,7 @@ function fetchArtistSchedule(artistName, CONFIG) {
         airtable_id: r.id,
         event_date:  r.fields.event_date || '',
         city:        r.fields.city || '',
+        venue:       r.fields.venue || '',
         ticket_url:  r.fields.ticket_url || '',
         tour_key:    r.fields.tour_key || '',
       });
@@ -565,6 +607,197 @@ function createAnnouncement(scheduleId, artist, event, tourKey, poster, CONFIG) 
     muteHttpExceptions: true,
   });
   if (res.getResponseCode() !== 200) Logger.log('  ANNOUNCEMENT insert error: ' + res.getContentText().substring(0, 200));
+}
+
+// ============================================================
+// v3.1 — DATE VERIFIER
+// One narrow, checkable question per event. Gemini grounded
+// search answers "is this specific show real and when" far more
+// reliably than "imagine every event for 18 months".
+// ============================================================
+function verifyEventDate(artist, event, CONFIG) {
+  const prompt = 'Verify this single event using web search:\n' +
+    'Artist: "' + artist.name + '" (' + artist.country + ')\n' +
+    'Event: "' + (event.event_name || '') + '"\n' +
+    'City: "' + (event.city || 'unknown') + '"\n' +
+    'Claimed date: ' + event.event_date + '\n\n' +
+    'Is this event officially confirmed, and what is its correct date in that city?\n' +
+    'Rules: rely only on official/ticketing/major-press sources found via search. ' +
+    'If you cannot verify it exists, confirmed must be false. Do not guess dates.\n' +
+    'Return ONLY JSON: {"confirmed": true|false, "date": "YYYY-MM-DD or empty string"}';
+
+  const payload = {
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    tools: [{ googleSearch: {} }],
+    generationConfig: { temperature: 0, maxOutputTokens: 100 },
+  };
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = UrlFetchApp.fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=' + CONFIG.GEMINI_API_KEY,
+        { method: 'POST', contentType: 'application/json', payload: JSON.stringify(payload), muteHttpExceptions: true }
+      );
+      const code = res.getResponseCode();
+      if (code === 503) { Utilities.sleep(3000); continue; }
+      if (code !== 200) return { confirmed: false, date: '' };
+      const raw = (JSON.parse(res.getContentText()).candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+      const m = raw.match(/\{[\s\S]*\}/);
+      if (!m) return { confirmed: false, date: '' };
+      const parsed = JSON.parse(m[0]);
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(parsed.date || '') ? parsed.date : '';
+      return { confirmed: parsed.confirmed === true, date: date };
+    } catch (e) {
+      if (attempt < 2) Utilities.sleep(2000);
+    }
+  }
+  return { confirmed: false, date: '' };
+}
+
+// ============================================================
+// v3.1 — PURGE & REFILL (the real cleanup)
+// All auto-scraped rows are regenerable, so we don't repair them
+// — we delete them and let the verified pipeline refill clean.
+// KEEPS: schedule rows from artist uploads/manual entry, and any
+// announcement you personally touched (has an image or custom text).
+// Run ONCE, then run startWeeklyRun() to begin the refill.
+// ============================================================
+function purgeUnverifiedData() {
+  const CONFIG = getScheduleConfig();
+  Logger.log('=== PURGE auto-scraped rows ===');
+
+  // SCHEDULE: delete rows where source = gemini_web_search
+  const schedIds = [];
+  let offset = null;
+  do {
+    let url = 'https://api.airtable.com/v0/' + CONFIG.AIRTABLE_BASE_ID + '/' + TABLES.SCHEDULE +
+      '?pageSize=100&filterByFormula=' + encodeURIComponent("{source}='gemini_web_search'");
+    if (offset) url += '&offset=' + offset;
+    const res = UrlFetchApp.fetch(url, { headers: { Authorization: 'Bearer ' + CONFIG.AIRTABLE_WRITE_TOKEN }, muteHttpExceptions: true });
+    if (res.getResponseCode() !== 200) break;
+    const data = JSON.parse(res.getContentText());
+    offset = data.offset || null;
+    for (const r of (data.records || [])) schedIds.push(r.id);
+  } while (offset);
+
+  // ANNOUNCEMENTS: delete rows you never touched (no image, no custom text)
+  const annIds = [];
+  offset = null;
+  do {
+    let url = 'https://api.airtable.com/v0/' + CONFIG.AIRTABLE_BASE_ID + '/' + TABLES.ANNOUNCEMENTS +
+      '?pageSize=100&filterByFormula=' + encodeURIComponent("AND({image_url}='',{custom_text}='')");
+    if (offset) url += '&offset=' + offset;
+    const res = UrlFetchApp.fetch(url, { headers: { Authorization: 'Bearer ' + CONFIG.AIRTABLE_WRITE_TOKEN }, muteHttpExceptions: true });
+    if (res.getResponseCode() !== 200) break;
+    const data = JSON.parse(res.getContentText());
+    offset = data.offset || null;
+    for (const r of (data.records || [])) annIds.push(r.id);
+  } while (offset);
+
+  Logger.log('SCHEDULE rows to purge: ' + schedIds.length);
+  Logger.log('ANNOUNCEMENTS rows to purge: ' + annIds.length + ' (rows with your images/text are kept)');
+
+  const jobs = [
+    { table: TABLES.SCHEDULE, ids: schedIds },
+    { table: TABLES.ANNOUNCEMENTS, ids: annIds },
+  ];
+  for (const job of jobs) {
+    let deleted = 0;
+    for (let i = 0; i < job.ids.length; i += 10) {
+      const batch = job.ids.slice(i, i + 10);
+      const qs = batch.map(function (id) { return 'records[]=' + id; }).join('&');
+      const res = UrlFetchApp.fetch('https://api.airtable.com/v0/' + CONFIG.AIRTABLE_BASE_ID + '/' + job.table + '?' + qs, {
+        method: 'DELETE', headers: { Authorization: 'Bearer ' + CONFIG.AIRTABLE_WRITE_TOKEN }, muteHttpExceptions: true,
+      });
+      if (res.getResponseCode() === 200) deleted += batch.length;
+      Utilities.sleep(250);
+    }
+    Logger.log('✓ ' + job.table + ': deleted ' + deleted);
+  }
+  Logger.log('=== Purge done. Run startWeeklyRun() to refill with verified data. ===');
+}
+
+// ============================================================
+// v3.2 — RETAG: force-overwrite ALL tour_keys with the new
+// order-proof algorithm, then cleanupDuplicates() catches pairs
+// the old keys missed. Run once after pasting v3.2.
+// ============================================================
+function retagTourKeys() {
+  const CONFIG = getScheduleConfig();
+  Logger.log('=== RETAG tour_key (v3.2 algorithm) ===');
+  const jobs = [
+    { table: TABLES.SCHEDULE,      artistField: 'artist_name',     nameField: 'event_name' },
+    { table: TABLES.ANNOUNCEMENTS, artistField: 'override_artist', nameField: 'override_title' },
+  ];
+  for (const job of jobs) {
+    const pending = [];
+    let offset = null;
+    do {
+      let url = 'https://api.airtable.com/v0/' + CONFIG.AIRTABLE_BASE_ID + '/' + job.table + '?pageSize=100';
+      if (offset) url += '&offset=' + offset;
+      const res = UrlFetchApp.fetch(url, { headers: { Authorization: 'Bearer ' + CONFIG.AIRTABLE_WRITE_TOKEN }, muteHttpExceptions: true });
+      if (res.getResponseCode() !== 200) break;
+      const data = JSON.parse(res.getContentText());
+      offset = data.offset || null;
+      for (const r of (data.records || [])) {
+        const key = deriveTourKey(r.fields[job.artistField] || '', r.fields[job.nameField] || '');
+        if (r.fields.tour_key !== key) pending.push({ id: r.id, fields: { tour_key: key } });
+      }
+    } while (offset);
+    Logger.log(job.table + ': ' + pending.length + ' rows to retag');
+    let tagged = 0;
+    for (let i = 0; i < pending.length; i += 10) {
+      const batch = pending.slice(i, i + 10);
+      const res = UrlFetchApp.fetch('https://api.airtable.com/v0/' + CONFIG.AIRTABLE_BASE_ID + '/' + job.table, {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + CONFIG.AIRTABLE_WRITE_TOKEN, 'Content-Type': 'application/json' },
+        payload: JSON.stringify({ records: batch }),
+        muteHttpExceptions: true,
+      });
+      if (res.getResponseCode() === 200) tagged += batch.length;
+      Utilities.sleep(250);
+    }
+    Logger.log('✓ ' + job.table + ': retagged ' + tagged);
+  }
+  Logger.log('=== Retag done. Now run cleanupDuplicates() ===');
+}
+
+// ============================================================
+// v3.1 — CONFLICT REPORT (read-only sanity check)
+// Same artist, same date, different cities = physically suspect.
+// ============================================================
+function reportConflicts() {
+  const CONFIG = getScheduleConfig();
+  const rows = [];
+  let offset = null;
+  do {
+    let url = 'https://api.airtable.com/v0/' + CONFIG.AIRTABLE_BASE_ID + '/' + TABLES.SCHEDULE + '?pageSize=100';
+    if (offset) url += '&offset=' + offset;
+    const res = UrlFetchApp.fetch(url, { headers: { Authorization: 'Bearer ' + CONFIG.AIRTABLE_WRITE_TOKEN }, muteHttpExceptions: true });
+    if (res.getResponseCode() !== 200) break;
+    const data = JSON.parse(res.getContentText());
+    offset = data.offset || null;
+    for (const r of (data.records || [])) rows.push(r.fields);
+  } while (offset);
+
+  const byKey = {};
+  for (const f of rows) {
+    const k = (f.artist_name || '') + '__' + (f.event_date || '');
+    (byKey[k] = byKey[k] || []).push(f.city || '?');
+  }
+  let found = 0;
+  for (const k in byKey) {
+    const cities = [];
+    byKey[k].forEach(function (c) {
+      const cc = c.toLowerCase().trim();
+      if (cities.indexOf(cc) < 0) cities.push(cc);
+    });
+    if (cities.length > 1) {
+      found++;
+      Logger.log('⚠ ' + k.replace('__', ' on ') + ' → ' + cities.join(' AND '));
+    }
+  }
+  Logger.log(found ? found + ' conflicts — fix dates or delete the wrong rows.' : '✓ No same-day city conflicts.');
 }
 
 // ============================================================

@@ -52,7 +52,7 @@ export default function ArtistDetail() {
   const tours = useMemo(() => {
     const map = new Map()
     for (const e of events) {
-      const key = deriveTourKey(e.artist_name, e.event_name)
+      const key = e.tour_key || deriveTourKey(e.artist_name, e.event_name)
       if (!map.has(key)) map.set(key, { name: e.event_name, type: e.event_type, legs: [] })
       map.get(key).legs.push(e)
     }
