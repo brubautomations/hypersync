@@ -5,7 +5,7 @@ import { useReveal } from '../lib/useReveal'
 import { groupAnnouncements, resolveImage, indexArtistsByName } from '../lib/tours'
 
 const HERO_FALLBACK = {
-  title: 'Tune in to everything.',
+  title: 'HYPERSYNC',
   artist: '',
   date: '',
   image: '',
@@ -143,7 +143,6 @@ function SyncStrip() {
         display: 'flex', alignItems: 'center', gap: 'clamp(14px, 3vw, 28px)',
         padding: '18px 0', flexWrap: 'wrap',
       }}>
-        <span className="eyebrow" style={{ color: 'var(--text)' }}>Tune in to everything.</span>
         {ITEMS.map(([label, path], idx) => (
           <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 'clamp(14px, 3vw, 28px)' }}>
             <Link to={path} style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--dim)', transition: 'color 0.2s' }}
@@ -232,7 +231,7 @@ export default function Home() {
   useEffect(() => {
     Promise.allSettled([fetchData('announcements'), fetchData('artists')]).then(([ann, art]) => {
       const artistList = (art.status === 'fulfilled' ? art.value : [])
-        .sort((a, b) => ((b.global_score||0)*2 + (b.asia_score||0) + (b.local_score||0)) - ((a.global_score||0)*2 + (a.asia_score||0) + (a.local_score||0)))
+        .map(a => [Math.random(), a]).sort((x, y) => x[0] - y[0]).map(x => x[1])
       setArtists(artistList)
       const byName = indexArtistsByName(artistList)
       if (ann.status === 'fulfilled') {
@@ -261,17 +260,12 @@ export default function Home() {
       {/* ARTISTS */}
       <section className="section wrap">
         <div className="section-head">
-          <div>
-            <div className="eyebrow eyebrow--volt" style={{ marginBottom: 8 }}>Pick your artist</div>
-            <h2 className="display" style={{ fontSize: 'clamp(1.8rem, 4vw, 2.6rem)' }}>
-              Their whole <span className="volt-text">universe</span>
-            </h2>
-          </div>
+          <h2 className="display" style={{ fontSize: 'clamp(1.8rem, 4vw, 2.6rem)' }}>Artists</h2>
           <Link to="/artists" className="btn btn--ghost" style={{ flexShrink: 0 }}>All artists</Link>
         </div>
         {artists.length ? (
-          <div className="rail">
-            {artists.slice(0, 12).map(a => <ArtistCard key={a.id} a={a} />)}
+          <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(44vw, 180px), 1fr))' }}>
+            {artists.slice(0, 5).map(a => <ArtistCard key={a.id} a={a} />)}
           </div>
         ) : (
           <div className="card" style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--dim)' }}>
@@ -283,10 +277,7 @@ export default function Home() {
       {/* UPCOMING */}
       <section className="section wrap" style={{ paddingTop: 0 }}>
         <div className="section-head">
-          <div>
-            <div className="eyebrow eyebrow--volt" style={{ marginBottom: 8 }}>Coming up</div>
-            <h2 className="display" style={{ fontSize: 'clamp(1.8rem, 4vw, 2.6rem)' }}>Don't miss it</h2>
-          </div>
+          <h2 className="display" style={{ fontSize: 'clamp(1.8rem, 4vw, 2.6rem)' }}>Upcoming</h2>
           <Link to="/schedule" className="btn btn--ghost" style={{ flexShrink: 0 }}>Full schedule</Link>
         </div>
         {events.length ? (
@@ -304,10 +295,7 @@ export default function Home() {
       {news.length > 0 && (
         <section className="section wrap" style={{ paddingTop: 0 }}>
           <div className="section-head">
-            <div>
-              <div className="eyebrow eyebrow--volt" style={{ marginBottom: 8 }}>Fresh off the wire</div>
-              <h2 className="display" style={{ fontSize: 'clamp(1.8rem, 4vw, 2.6rem)' }}>In the news</h2>
-            </div>
+            <h2 className="display" style={{ fontSize: 'clamp(1.8rem, 4vw, 2.6rem)' }}>News</h2>
             <Link to="/feed" className="btn btn--ghost" style={{ flexShrink: 0 }}>The feed</Link>
           </div>
           <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(min(88vw, 290px), 1fr))' }}>
@@ -339,7 +327,7 @@ export default function Home() {
         }}>
           <img src="/logo.png" alt="HYPERSYNC" style={{ height: 26, opacity: 0.9 }} />
           <p style={{ fontSize: '0.72rem', color: 'var(--faint)' }}>
-            © {new Date().getFullYear()} HYPERSYNC · Asian music, synchronized.
+            © {new Date().getFullYear()} HYPERSYNC
           </p>
         </div>
       </footer>

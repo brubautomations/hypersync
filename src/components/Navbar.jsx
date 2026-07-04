@@ -29,12 +29,7 @@ function SignInModal({ onClose }) {
       }}>
         <img src="/logo.png" alt="HYPERSYNC" style={{ height: 44 }} />
         <div style={{ textAlign: 'center' }}>
-          <div className="display" style={{ fontSize: '1.5rem', marginBottom: 8 }}>
-            Get in <span className="volt-text">sync</span>
-          </div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--dim)' }}>
-            One account. Your artists' whole universe.
-          </p>
+          <div className="display" style={{ fontSize: '1.5rem', marginBottom: 8 }}>Sign in</div>
         </div>
         <div ref={slot} style={{ minHeight: 44 }} />
         <button className="btn btn--quiet" onClick={onClose}>Maybe later</button>
@@ -65,7 +60,7 @@ export default function Navbar() {
           height: 68, gap: 16,
         }}>
           <Link to="/" style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-            <img src="/logo.png" alt="HYPERSYNC" style={{ height: 34 }} />
+            <img src="/logo.png" alt="HYPERSYNC" style={{ height: 60 }} />
           </Link>
 
           {/* desktop links */}

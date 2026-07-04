@@ -25,7 +25,7 @@ export function Modal({ onClose, children, maxWidth = 440 }) {
 }
 
 // ── sign in ──────────────────────────────────────────────────
-export function SignInModal({ onClose, message = "One account. Your artists' whole universe." }) {
+export function SignInModal({ onClose, message = "Sign in to continue." }) {
   const { renderGoogleButton, ready } = useAuth()
   const slot = useRef(null)
   useEffect(() => { if (ready) renderGoogleButton(slot.current) }, [ready, renderGoogleButton])
@@ -34,9 +34,7 @@ export function SignInModal({ onClose, message = "One account. Your artists' who
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
         <img src="/logo.png" alt="HYPERSYNC" style={{ height: 40 }} />
         <div style={{ textAlign: 'center' }}>
-          <div className="display" style={{ fontSize: '1.5rem', marginBottom: 8 }}>
-            Get in <span className="volt-text">sync</span>
-          </div>
+          <div className="display" style={{ fontSize: '1.5rem', marginBottom: 8 }}>Sign in</div>
           <p style={{ fontSize: '0.85rem', color: 'var(--dim)' }}>{message}</p>
         </div>
         <div ref={slot} style={{ minHeight: 44 }} />
@@ -92,8 +90,7 @@ export function BuyCreditsModal({ onClose }) {
   return (
     <Modal onClose={onClose}>
       <div style={{ textAlign: 'center', marginBottom: 26 }}>
-        <div className="eyebrow eyebrow--volt" style={{ marginBottom: 8 }}>Credits</div>
-        <div className="display" style={{ fontSize: '1.7rem' }}>Fuel your fandom</div>
+        <div className="display" style={{ fontSize: '1.7rem' }}>Buy credits</div>
         <p style={{ fontSize: '0.8rem', color: 'var(--dim)', marginTop: 8 }}>
           Credits let you send messages straight to your artists.
         </p>

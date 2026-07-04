@@ -98,10 +98,7 @@ export default function Feed() {
   return (
     <div ref={rootRef} className="wrap section">
       <div style={{ marginBottom: 'clamp(24px, 4vw, 40px)' }}>
-        <div className="eyebrow eyebrow--volt" style={{ marginBottom: 10 }}>Everything, everywhere</div>
-        <h1 className="display" style={{ fontSize: 'clamp(2.4rem, 7vw, 4.5rem)' }}>
-          The <span className="volt-text">feed</span>
-        </h1>
+        <h1 className="display" style={{ fontSize: 'clamp(2.4rem, 7vw, 4.5rem)' }}>Feed</h1>
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>

@@ -44,9 +44,7 @@ export default function Artists() {
   const rootRef = useReveal()
 
   useEffect(() => {
-    fetchData('artists')
-      .then(rows => setArtists([...rows].sort((a, b) => ((b.global_score||0)*2 + (b.asia_score||0) + (b.local_score||0)) - ((a.global_score||0)*2 + (a.asia_score||0) + (a.local_score||0)))))
-      .catch(() => setArtists([]))
+    fetchData('artists').then(setArtists).catch(() => setArtists([]))
   }, [])
 
   const countries = useMemo(() =>
@@ -63,10 +61,7 @@ export default function Artists() {
   return (
     <div ref={rootRef} className="wrap section">
       <div style={{ marginBottom: 'clamp(24px, 4vw, 40px)' }}>
-        <div className="eyebrow eyebrow--volt" style={{ marginBottom: 10 }}>Explore</div>
-        <h1 className="display" style={{ fontSize: 'clamp(2.4rem, 7vw, 4.5rem)' }}>
-          Pick your <span className="volt-text">artist</span>
-        </h1>
+        <h1 className="display" style={{ fontSize: 'clamp(2.4rem, 7vw, 4.5rem)' }}>Artists</h1>
       </div>
 
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', marginBottom: 26 }}>
