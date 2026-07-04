@@ -325,7 +325,10 @@ export default function Home() {
           padding: '32px 0', display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', gap: 16, flexWrap: 'wrap',
         }}>
-          <img src="/logo.png" alt="HYPERSYNC" style={{ height: 26, opacity: 0.9 }} />
+          <img src="/logo.png" alt="HYPERSYNC" style={{ height: 34 }} />
+          <div className="display volt-text" style={{ fontSize: 'clamp(1rem, 2.2vw, 1.4rem)', letterSpacing: '0.06em' }}>
+            Tune in to everything.
+          </div>
           <p style={{ fontSize: '0.72rem', color: 'var(--faint)' }}>
             © {new Date().getFullYear()} HYPERSYNC
           </p>

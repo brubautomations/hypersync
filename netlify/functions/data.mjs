@@ -39,6 +39,7 @@ const RESOURCES = {
     const rows = await atList(TABLES.ARTISTS, {
       filterByFormula: "AND({verified},{setup_done})",
     });
+    rows.sort((a, b) => (a["name"] || "").localeCompare(b["name"] || ""));
     return rows.map((r) => ({
       id: r.id,
       name: r["name"] || "",

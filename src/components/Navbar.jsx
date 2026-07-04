@@ -60,7 +60,7 @@ export default function Navbar() {
           height: 68, gap: 16,
         }}>
           <Link to="/" style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-            <img src="/logo.png" alt="HYPERSYNC" style={{ height: 60 }} />
+            <img src="/logo.png" alt="HYPERSYNC" style={{ height: 48 }} />
           </Link>
 
           {/* desktop links */}
