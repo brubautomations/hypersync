@@ -5,7 +5,7 @@ import { useReveal } from '../lib/useReveal'
 import { groupAnnouncements, resolveImage, indexArtistsByName } from '../lib/tours'
 
 const HERO_FALLBACK = {
-  title: 'Everything your artist does. One place.',
+  title: 'Tune in to everything.',
   artist: '',
   date: '',
   image: '',
@@ -133,17 +133,22 @@ function Hero({ slides }) {
 
 // ── SYNC STRIP — the positioning, said out loud ─────────────
 function SyncStrip() {
-  const ITEMS = ['News', 'Socials', 'Schedule', 'Releases', 'Merch', 'Messages']
+  const ITEMS = [
+    ['News', '/feed'], ['Socials', '/feed'], ['Schedule', '/schedule'],
+    ['Releases', '/feed'], ['Merch', '/shop'], ['Messages', '/artists'],
+  ]
   return (
     <div style={{ borderBlock: '1px solid var(--line)', background: 'var(--panel)', overflow: 'hidden' }}>
       <div className="wrap" style={{
         display: 'flex', alignItems: 'center', gap: 'clamp(14px, 3vw, 28px)',
         padding: '18px 0', flexWrap: 'wrap',
       }}>
-        <span className="eyebrow" style={{ color: 'var(--text)' }}>One artist. Everything.</span>
-        {ITEMS.map((it, idx) => (
-          <span key={it} style={{ display: 'flex', alignItems: 'center', gap: 'clamp(14px, 3vw, 28px)' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--dim)' }}>{it}</span>
+        <span className="eyebrow" style={{ color: 'var(--text)' }}>Tune in to everything.</span>
+        {ITEMS.map(([label, path], idx) => (
+          <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 'clamp(14px, 3vw, 28px)' }}>
+            <Link to={path} style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--dim)', transition: 'color 0.2s' }}
+              onMouseEnter={e => e.target.style.color = 'var(--volt)'}
+              onMouseLeave={e => e.target.style.color = 'var(--dim)'}>{label}</Link>
             {idx < ITEMS.length - 1 && <span style={{ color: 'var(--volt)', fontSize: '0.6rem' }}>◆</span>}
           </span>
         ))}
