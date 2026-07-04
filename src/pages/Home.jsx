@@ -110,7 +110,6 @@ function Hero({ slides }) {
             color: 'var(--text)', marginTop: 14, fontSize: '0.82rem',
             textShadow: '0 2px 10px rgba(0,0,0,0.7)',
           }}>
-            {s.legs > 1 ? 'Next stop · ' : ''}
             {[s.venue, s.city, s.country].filter(Boolean).join(', ')}
           </div>
         )}

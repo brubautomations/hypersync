@@ -9,10 +9,17 @@ const CACHE = "public, max-age=0, s-maxage=120, stale-while-revalidate=300";
 
 const RESOURCES = {
   news: async () => {
-    const rows = await atList(TABLES.NEWS, {
-      sort: [{ field: "Published", direction: "desc" }],
-      maxRecords: 400,
-    });
+    let rows;
+    try {
+      rows = await atList(TABLES.NEWS, {
+        sort: [{ field: "Published", direction: "desc" }],
+        maxRecords: 400,
+      });
+    } catch {
+      // Sort field hiccup shouldn't blank the feed — fetch unsorted, sort here
+      rows = await atList(TABLES.NEWS, { maxRecords: 400 });
+      rows.sort((a, b) => (b["Published"] || b.created_at || "").localeCompare(a["Published"] || a.created_at || ""));
+    }
     return rows.map((r) => ({
       id: r.id,
       title: r["Title"] || "",
@@ -109,25 +116,34 @@ const RESOURCES = {
         filterByFormula: `{event_date}>='${new Date().toISOString().split("T")[0]}'`,
       }),
     ]);
-    // Two lookup maps: exact schedule_id, and tour_key+date
+    // Three lookup maps: exact schedule_id, tour_key+date, and
+    // tour_key alone → NEXT upcoming leg (rescues orphaned announcements
+    // whose original schedule rows were purged)
     const byId = {};
     const byTourDate = {};
-    for (const s of sched) {
+    const byTour = {};
+    const sorted = [...sched].sort((a, b) =>
+      (a["event_date"] || "").localeCompare(b["event_date"] || ""));
+    for (const s of sorted) {
       const loc = {
         venue: s["venue"] || "",
         city: s["city"] || "",
         country: s["country"] || "",
         event_type: s["event_type"] || "",
+        date: s["event_date"] || "",
       };
       if (s["id"]) byId[s["id"]] = loc;
       byId[s.id] = loc;
-      if (s["tour_key"] && s["event_date"])
-        byTourDate[`${s["tour_key"]}__${s["event_date"]}`] = loc;
+      if (s["tour_key"]) {
+        if (s["event_date"]) byTourDate[`${s["tour_key"]}__${s["event_date"]}`] = loc;
+        if (!byTour[s["tour_key"]]) byTour[s["tour_key"]] = loc; // earliest wins
+      }
     }
     return rows.map((r) => {
       const loc =
         byId[r["schedule_id"]] ||
         byTourDate[`${r["tour_key"] || ""}__${r["override_date"] || ""}`] ||
+        byTour[r["tour_key"] || ""] ||
         {};
       return {
         id: r.id,
