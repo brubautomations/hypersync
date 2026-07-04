@@ -1,0 +1,137 @@
+// ============================================================
+// /api/credits — the cash register, now with a locked drawer.
+//   GET  ?action=balance                  → { credits }
+//   POST ?action=create { pack }          → { checkout_url, link_id }
+//   GET  ?action=check&link_id=...        → { status } (adds credits on paid)
+// The browser can never write a balance. Only this function can.
+// ============================================================
+import {
+  atList, atCreate, atUpdate, TABLES,
+  getSessionFromRequest, json, err, esc,
+} from "./_shared.mjs";
+
+const PAYMONGO_SECRET = process.env.PAYMONGO_SECRET;
+
+// Server-side price list — the client only ever sends a pack id.
+const PACKS = {
+  fan:      { credits: 12, price: 99,  label: "FAN" },
+  superfan: { credits: 30, price: 199, label: "SUPERFAN" },
+  test:     { credits: 5,  price: 1,   label: "TEST" },
+};
+
+const pmHeaders = {
+  Authorization: `Basic ${Buffer.from(PAYMONGO_SECRET + ":").toString("base64")}`,
+  "Content-Type": "application/json",
+};
+
+async function getFanRecord(email) {
+  const rows = await atList(TABLES.FAN_CREDITS, {
+    filterByFormula: `{Fan Email}='${esc(email)}'`,
+    maxRecords: 1,
+  });
+  if (rows.length) return rows[0];
+  const created = await atCreate(TABLES.FAN_CREDITS, {
+    "Fan ID": email,
+    "Fan Email": email,
+    "Fan Name": "",
+    Credits: 0,
+  });
+  return { id: created.id, Credits: 0 };
+}
+
+export default async function handler(req) {
+  const q = new URL(req.url).searchParams;
+  const action = q.get("action");
+  const user = getSessionFromRequest(req);
+  if (!user) return err("Sign in to continue", 401);
+
+  // ── balance ────────────────────────────────────────────────
+  if (action === "balance" && req.method === "GET") {
+    try {
+      const fan = await getFanRecord(user.email);
+      return json({ credits: fan["Credits"] || 0 });
+    } catch {
+      return err("Could not load balance", 502);
+    }
+  }
+
+  // ── create payment link ────────────────────────────────────
+  if (action === "create" && req.method === "POST") {
+    let body;
+    try { body = await req.json(); } catch { return err("Bad request"); }
+    const pack = PACKS[body?.pack];
+    if (!pack) return err("Unknown pack");
+
+    try {
+      const res = await fetch("https://api.paymongo.com/v1/links", {
+        method: "POST",
+        headers: pmHeaders,
+        body: JSON.stringify({
+          data: {
+            attributes: {
+              amount: pack.price * 100, // centavos
+              description: `HYPERSYNC ${pack.label} — ${pack.credits} credits — ${user.email}`,
+            },
+          },
+        }),
+      });
+      if (!res.ok) return err("Payment link could not be created", 502);
+      const data = await res.json();
+
+      // Record the pending purchase server-side
+      await atCreate(TABLES.CREDIT_PURCHASES, {
+        "Fan Email": user.email,
+        "Link ID": data.data.id,
+        Credits: pack.credits,
+        Amount: pack.price,
+        Status: "pending",
+      });
+
+      return json({
+        checkout_url: data.data.attributes.checkout_url,
+        link_id: data.data.id,
+      });
+    } catch {
+      return err("Payment link could not be created", 502);
+    }
+  }
+
+  // ── check payment + fulfil ─────────────────────────────────
+  if (action === "check" && req.method === "GET") {
+    const linkId = q.get("link_id");
+    if (!linkId) return err("Missing link_id");
+
+    try {
+      // Look up the pending purchase we created (never trust client amounts)
+      const purchases = await atList(TABLES.CREDIT_PURCHASES, {
+        filterByFormula: `AND({Link ID}='${esc(linkId)}',{Fan Email}='${esc(user.email)}')`,
+        maxRecords: 1,
+      });
+      const purchase = purchases[0];
+      if (!purchase) return err("Purchase not found", 404);
+      if (purchase["Status"] === "paid") return json({ status: "paid" });
+
+      const res = await fetch(`https://api.paymongo.com/v1/links/${linkId}`, {
+        headers: pmHeaders,
+      });
+      if (!res.ok) return err("Could not check payment", 502);
+      const data = await res.json();
+      const status = data?.data?.attributes?.status;
+
+      if (status !== "paid") return json({ status: status || "pending" });
+
+      // Fulfil exactly once: mark paid first, then add credits
+      await atUpdate(TABLES.CREDIT_PURCHASES, purchase.id, { Status: "paid" });
+      const fan = await getFanRecord(user.email);
+      await atUpdate(TABLES.FAN_CREDITS, fan.id, {
+        Credits: (fan["Credits"] || 0) + (purchase["Credits"] || 0),
+      });
+
+      return json({ status: "paid" });
+    } catch {
+      return err("Could not check payment", 502);
+    }
+  }
+
+  return err("Unknown action", 404);
+}
