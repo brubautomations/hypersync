@@ -103,20 +103,48 @@ const RESOURCES = {
   },
 
   announcements: async () => {
-    const rows = await atList(TABLES.ANNOUNCEMENTS, {
-      filterByFormula: "{active}=1",
+    const [rows, sched] = await Promise.all([
+      atList(TABLES.ANNOUNCEMENTS, { filterByFormula: "{active}=1" }),
+      atList(TABLES.SCHEDULE, {
+        filterByFormula: `{event_date}>='${new Date().toISOString().split("T")[0]}'`,
+      }),
+    ]);
+    // Two lookup maps: exact schedule_id, and tour_key+date
+    const byId = {};
+    const byTourDate = {};
+    for (const s of sched) {
+      const loc = {
+        venue: s["venue"] || "",
+        city: s["city"] || "",
+        country: s["country"] || "",
+        event_type: s["event_type"] || "",
+      };
+      if (s["id"]) byId[s["id"]] = loc;
+      byId[s.id] = loc;
+      if (s["tour_key"] && s["event_date"])
+        byTourDate[`${s["tour_key"]}__${s["event_date"]}`] = loc;
+    }
+    return rows.map((r) => {
+      const loc =
+        byId[r["schedule_id"]] ||
+        byTourDate[`${r["tour_key"] || ""}__${r["override_date"] || ""}`] ||
+        {};
+      return {
+        id: r.id,
+        schedule_id: r["schedule_id"] || "",
+        title: r["override_title"] || "",
+        artist: r["override_artist"] || "",
+        date: r["override_date"] || "",
+        image: r["image_url"] || "",
+        text: r["custom_text"] || "",
+        tour_key: r["tour_key"] || "",
+        show_from: r["show_from"] || "",
+        venue: loc.venue || "",
+        city: loc.city || "",
+        country: loc.country || "",
+        event_type: loc.event_type || "",
+      };
     });
-    return rows.map((r) => ({
-      id: r.id,
-      schedule_id: r["schedule_id"] || "",
-      title: r["override_title"] || "",
-      artist: r["override_artist"] || "",
-      date: r["override_date"] || "",
-      image: r["image_url"] || "",
-      text: r["custom_text"] || "",
-      tour_key: r["tour_key"] || "",
-      show_from: r["show_from"] || "",
-    }));
   },
 
   merch: async () => {

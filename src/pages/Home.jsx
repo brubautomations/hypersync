@@ -86,6 +86,9 @@ function Hero({ slides }) {
       }}>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
           <span className="chip chip--on" style={{ cursor: 'default' }}>{s.eventType || 'Event'}</span>
+          {s.legs > 1 && (
+            <span className="chip chip--pulse" style={{ cursor: 'default' }}>Tour · {s.legs} dates</span>
+          )}
           {countdown && (
             <span className="chip chip--volt-line" style={{ cursor: 'default' }}>
               <span className="sync-dot" />{countdown}
@@ -101,6 +104,16 @@ function Hero({ slides }) {
         <h1 className="display" style={{ fontSize: 'clamp(2.4rem, 7vw, 5.4rem)', maxWidth: 900 }}>
           {s.title}
         </h1>
+
+        {(s.venue || s.city || s.country) && (
+          <div className="eyebrow" style={{
+            color: 'var(--text)', marginTop: 14, fontSize: '0.82rem',
+            textShadow: '0 2px 10px rgba(0,0,0,0.7)',
+          }}>
+            {s.legs > 1 ? 'Next stop · ' : ''}
+            {[s.venue, s.city, s.country].filter(Boolean).join(', ')}
+          </div>
+        )}
 
         {slides.length > 1 && (
           <div style={{ display: 'flex', gap: 8, marginTop: 28, alignItems: 'center' }}>
@@ -226,7 +239,7 @@ export default function Home() {
           groupAnnouncements(upcoming).slice(0, 8).map(a => ({
             ...a,
             image: resolveImage(a, byName),
-            eventType: a.legs > 1 ? `Tour · ${a.legs} dates` : 'Announcement',
+            eventType: (a.event_type || 'Event').toLowerCase().replace(/^./, c => c.toUpperCase()),
           }))
         )
       }

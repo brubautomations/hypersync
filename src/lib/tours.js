@@ -38,9 +38,15 @@ export function groupAnnouncements(rows) {
       groups.set(key, { ...a, tour_key: key, legs: 1 })
     } else {
       g.legs += 1
-      if (a.date && (!g.date || a.date < g.date)) { g.date = a.date; g.title = a.title }
+      if (a.date && (!g.date || a.date < g.date)) {
+        g.date = a.date; g.title = a.title
+        // Location follows the earliest (next) leg
+        g.venue = a.venue; g.city = a.city; g.country = a.country
+        if (a.event_type) g.event_type = a.event_type
+      }
       if (!g.image && a.image) g.image = a.image
       if (!g.text && a.text) g.text = a.text
+      if (!g.event_type && a.event_type) g.event_type = a.event_type
     }
   }
   return [...groups.values()].sort((x, y) => (x.date || '').localeCompare(y.date || ''))
