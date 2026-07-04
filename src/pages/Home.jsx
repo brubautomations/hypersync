@@ -231,7 +231,8 @@ export default function Home() {
 
   useEffect(() => {
     Promise.allSettled([fetchData('announcements'), fetchData('artists')]).then(([ann, art]) => {
-      const artistList = art.status === 'fulfilled' ? art.value : []
+      const artistList = (art.status === 'fulfilled' ? art.value : [])
+        .sort((a, b) => ((b.global_score||0)*2 + (b.asia_score||0) + (b.local_score||0)) - ((a.global_score||0)*2 + (a.asia_score||0) + (a.local_score||0)))
       setArtists(artistList)
       const byName = indexArtistsByName(artistList)
       if (ann.status === 'fulfilled') {

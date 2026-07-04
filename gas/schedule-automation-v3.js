@@ -1,5 +1,5 @@
 // ============================================================
-// HYPERSYNC — SCHEDULE AUTOMATION v3.2 (order-proof tours edition)
+// HYPERSYNC — SCHEDULE AUTOMATION v3.3 (clean-base edition)
 // ============================================================
 // WHAT'S NEW vs v2:
 //  1. tour_key — one tour, many legs. Derived from event names.
@@ -715,6 +715,100 @@ function purgeUnverifiedData() {
     Logger.log('✓ ' + job.table + ': deleted ' + deleted);
   }
   Logger.log('=== Purge done. Run startWeeklyRun() to refill with verified data. ===');
+}
+
+// ============================================================
+// v3.3 — LEGACY PURGE: kill the pre-verification 'web_search' rows
+// (the generation that dodged the first purge). Verified rows
+// (source = gemini_web_search) are untouched. Run once.
+// ============================================================
+function purgeLegacySchedule() {
+  const CONFIG = getScheduleConfig();
+  Logger.log('=== PURGE legacy web_search schedule rows ===');
+  const ids = [];
+  let offset = null;
+  do {
+    let url = 'https://api.airtable.com/v0/' + CONFIG.AIRTABLE_BASE_ID + '/' + TABLES.SCHEDULE +
+      '?pageSize=100&filterByFormula=' + encodeURIComponent("{source}='web_search'");
+    if (offset) url += '&offset=' + offset;
+    const res = UrlFetchApp.fetch(url, { headers: { Authorization: 'Bearer ' + CONFIG.AIRTABLE_WRITE_TOKEN }, muteHttpExceptions: true });
+    if (res.getResponseCode() !== 200) break;
+    const data = JSON.parse(res.getContentText());
+    offset = data.offset || null;
+    for (const r of (data.records || [])) ids.push(r.id);
+  } while (offset);
+  Logger.log('Legacy rows found: ' + ids.length);
+  let deleted = 0;
+  for (let i = 0; i < ids.length; i += 10) {
+    const batch = ids.slice(i, i + 10);
+    const qs = batch.map(function (id) { return 'records[]=' + id; }).join('&');
+    const res = UrlFetchApp.fetch('https://api.airtable.com/v0/' + CONFIG.AIRTABLE_BASE_ID + '/' + TABLES.SCHEDULE + '?' + qs, {
+      method: 'DELETE', headers: { Authorization: 'Bearer ' + CONFIG.AIRTABLE_WRITE_TOKEN }, muteHttpExceptions: true,
+    });
+    if (res.getResponseCode() === 200) deleted += batch.length;
+    Utilities.sleep(250);
+  }
+  Logger.log('✓ Deleted ' + deleted + ' legacy rows. Now run purgeOrphanAnnouncements().');
+}
+
+// ============================================================
+// v3.3 — ORPHAN ANNOUNCEMENT PURGE: delete announcements whose
+// event has NO living row in the verified schedule (dead link
+// AND no tour match). These are the hallucination-era leftovers.
+// Run AFTER purgeLegacySchedule().
+// ============================================================
+function purgeOrphanAnnouncements() {
+  const CONFIG = getScheduleConfig();
+  Logger.log('=== PURGE orphan announcements ===');
+
+  const validIds = {};
+  const livingTours = {};
+  let offset = null;
+  do {
+    let url = 'https://api.airtable.com/v0/' + CONFIG.AIRTABLE_BASE_ID + '/' + TABLES.SCHEDULE + '?pageSize=100';
+    if (offset) url += '&offset=' + offset;
+    const res = UrlFetchApp.fetch(url, { headers: { Authorization: 'Bearer ' + CONFIG.AIRTABLE_WRITE_TOKEN }, muteHttpExceptions: true });
+    if (res.getResponseCode() !== 200) break;
+    const data = JSON.parse(res.getContentText());
+    offset = data.offset || null;
+    for (const r of (data.records || [])) {
+      if (r.fields.id) validIds[r.fields.id] = true;
+      if (r.fields.tour_key) livingTours[r.fields.tour_key] = true;
+    }
+  } while (offset);
+
+  const ids = [];
+  offset = null;
+  do {
+    let url = 'https://api.airtable.com/v0/' + CONFIG.AIRTABLE_BASE_ID + '/' + TABLES.ANNOUNCEMENTS + '?pageSize=100';
+    if (offset) url += '&offset=' + offset;
+    const res = UrlFetchApp.fetch(url, { headers: { Authorization: 'Bearer ' + CONFIG.AIRTABLE_WRITE_TOKEN }, muteHttpExceptions: true });
+    if (res.getResponseCode() !== 200) break;
+    const data = JSON.parse(res.getContentText());
+    offset = data.offset || null;
+    for (const r of (data.records || [])) {
+      const f = r.fields;
+      const linked = f.schedule_id && validIds[f.schedule_id];
+      const tourAlive = f.tour_key && livingTours[f.tour_key];
+      if (!linked && !tourAlive) {
+        ids.push(r.id);
+        Logger.log('  🗑 ' + (f.override_title || '').substring(0, 55));
+      }
+    }
+  } while (offset);
+
+  Logger.log('Orphans to delete: ' + ids.length);
+  let deleted = 0;
+  for (let i = 0; i < ids.length; i += 10) {
+    const batch = ids.slice(i, i + 10);
+    const qs = batch.map(function (id) { return 'records[]=' + id; }).join('&');
+    const res = UrlFetchApp.fetch('https://api.airtable.com/v0/' + CONFIG.AIRTABLE_BASE_ID + '/' + TABLES.ANNOUNCEMENTS + '?' + qs, {
+      method: 'DELETE', headers: { Authorization: 'Bearer ' + CONFIG.AIRTABLE_WRITE_TOKEN }, muteHttpExceptions: true,
+    });
+    if (res.getResponseCode() === 200) deleted += batch.length;
+    Utilities.sleep(250);
+  }
+  Logger.log('✓ Deleted ' + deleted + ' orphan announcements. Run deleteOldRecords() + relinkAnnouncements() to finish.');
 }
 
 // ============================================================
