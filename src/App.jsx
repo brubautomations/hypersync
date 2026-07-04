@@ -3,6 +3,9 @@ import { AuthProvider } from './context/AuthContext'
 import { CreditProvider } from './context/CreditContext'
 import Navbar from './components/Navbar'
 import Home from './pages/Home'
+import Artists from './pages/Artists'
+import ArtistDetail from './pages/ArtistDetail'
+import Feed from './pages/Feed'
 
 // Phase 2–4 pages land here. Placeholder keeps routes stable meanwhile.
 function ComingSoon({ label }) {
@@ -27,9 +30,9 @@ export default function App() {
           <Navbar />
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/artists" element={<ComingSoon label="Artists" />} />
-            <Route path="/artists/:id" element={<ComingSoon label="Artist" />} />
-            <Route path="/feed" element={<ComingSoon label="Feed" />} />
+            <Route path="/artists" element={<Artists />} />
+            <Route path="/artists/:id" element={<ArtistDetail />} />
+            <Route path="/feed" element={<Feed />} />
             <Route path="/schedule" element={<ComingSoon label="Schedule" />} />
             <Route path="/shop" element={<ComingSoon label="Shop" />} />
             <Route path="*" element={<ComingSoon label="Page" />} />

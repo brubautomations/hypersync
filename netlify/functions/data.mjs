@@ -98,6 +98,7 @@ const RESOURCES = {
       event_date: r["event_date"] || "",
       ticket_url: r["ticket_url"] || "",
       source: r["source"] || "",
+      tour_key: r["tour_key"] || "",
     }));
   },
 
@@ -113,6 +114,7 @@ const RESOURCES = {
       date: r["override_date"] || "",
       image: r["image_url"] || "",
       text: r["custom_text"] || "",
+      tour_key: r["tour_key"] || "",
       show_from: r["show_from"] || "",
     }));
   },

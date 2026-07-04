@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchData } from '../lib/api'
 import { useReveal } from '../lib/useReveal'
+import { groupAnnouncements, resolveImage, indexArtistsByName } from '../lib/tours'
 
 const HERO_FALLBACK = {
   title: 'Everything your artist does. One place.',
@@ -208,21 +209,30 @@ export default function Home() {
   const [announcements, setAnnouncements] = useState([])
   const [artists, setArtists] = useState([])
   const [events, setEvents] = useState([])
+  const [news, setNews] = useState([])
   const rootRef = useReveal()
 
   useEffect(() => {
-    fetchData('announcements').then(rows => {
-      const today = new Date().toISOString().split('T')[0]
-      setAnnouncements(
-        rows
-          .filter(a => a.date && a.date >= today && (!a.show_from || a.show_from <= today))
-          .sort((a, b) => a.date.localeCompare(b.date))
-          .slice(0, 8)
-          .map(a => ({ ...a, eventType: 'Announcement' }))
-      )
-    }).catch(() => {})
-    fetchData('artists').then(setArtists).catch(() => {})
+    Promise.allSettled([fetchData('announcements'), fetchData('artists')]).then(([ann, art]) => {
+      const artistList = art.status === 'fulfilled' ? art.value : []
+      setArtists(artistList)
+      const byName = indexArtistsByName(artistList)
+      if (ann.status === 'fulfilled') {
+        const today = new Date().toISOString().split('T')[0]
+        const upcoming = ann.value.filter(a =>
+          a.date && a.date >= today && (!a.show_from || a.show_from <= today))
+        // One slide per tour; explicit image → artist banner → gradient
+        setAnnouncements(
+          groupAnnouncements(upcoming).slice(0, 8).map(a => ({
+            ...a,
+            image: resolveImage(a, byName),
+            eventType: a.legs > 1 ? `Tour · ${a.legs} dates` : 'Announcement',
+          }))
+        )
+      }
+    })
     fetchData('schedule').then(rows => setEvents(rows.slice(0, 6))).catch(() => {})
+    fetchData('news').then(rows => setNews(rows.slice(0, 6))).catch(() => {})
   }, [])
 
   return (
@@ -271,6 +281,37 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      {/* NEWS STRIP */}
+      {news.length > 0 && (
+        <section className="section wrap" style={{ paddingTop: 0 }}>
+          <div className="section-head">
+            <div>
+              <div className="eyebrow eyebrow--volt" style={{ marginBottom: 8 }}>Fresh off the wire</div>
+              <h2 className="display" style={{ fontSize: 'clamp(1.8rem, 4vw, 2.6rem)' }}>In the news</h2>
+            </div>
+            <Link to="/feed" className="btn btn--ghost" style={{ flexShrink: 0 }}>The feed</Link>
+          </div>
+          <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(min(88vw, 290px), 1fr))' }}>
+            {news.map(n => (
+              <a key={n.id} href={n.url} target="_blank" rel="noopener noreferrer" className="card card--lift reveal" style={{ display: 'block' }}>
+                {n.image && (
+                  <div style={{ position: 'relative', paddingTop: '54%', overflow: 'hidden' }}>
+                    <img src={n.image} alt="" loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                )}
+                <div style={{ padding: '13px 15px' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.86rem', lineHeight: 1.4, marginBottom: 7 }}>{n.title}</div>
+                  <div style={{ fontSize: '0.66rem', color: 'var(--faint)' }}>
+                    {n.artist && <span style={{ color: 'var(--volt)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{n.artist} · </span>}
+                    {n.source}
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* FOOTER */}
       <footer style={{ borderTop: '1px solid var(--line)', marginTop: 24 }}>
