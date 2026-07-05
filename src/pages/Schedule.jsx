@@ -23,25 +23,25 @@ function flagOf(country) {
   return String.fromCodePoint(...[...code].map(c => 0x1F1E6 + c.charCodeAt(0) - 65))
 }
 
-// drag-to-scroll belt (NXG-style): grab, drag, momentum via native scroll
+// drag-to-scroll belt (NXG-style). No pointer capture — capture was
+// swallowing the click events that make avatars selectable.
 function useBelt() {
-  const ref = { current: null }
   const state = { down: false, startX: 0, scrollLeft: 0, moved: 0 }
-  const onPointerDown = e => {
-    const el = e.currentTarget
-    state.down = true; state.moved = 0
-    state.startX = e.clientX; state.scrollLeft = el.scrollLeft
-    el.setPointerCapture(e.pointerId)
+  return {
+    onPointerDown: e => {
+      state.down = true; state.moved = 0
+      state.startX = e.clientX; state.scrollLeft = e.currentTarget.scrollLeft
+    },
+    onPointerMove: e => {
+      if (!state.down) return
+      const dx = e.clientX - state.startX
+      state.moved = Math.max(state.moved, Math.abs(dx))
+      e.currentTarget.scrollLeft = state.scrollLeft - dx
+    },
+    onPointerUp: () => { state.down = false },
+    onPointerLeave: () => { state.down = false },
+    wasDrag: () => state.moved > 6,
   }
-  const onPointerMove = e => {
-    if (!state.down) return
-    const dx = e.clientX - state.startX
-    state.moved = Math.max(state.moved, Math.abs(dx))
-    e.currentTarget.scrollLeft = state.scrollLeft - dx
-  }
-  const onPointerUp = e => { state.down = false; e.currentTarget.releasePointerCapture(e.pointerId) }
-  const wasDrag = () => state.moved > 6
-  return { onPointerDown, onPointerMove, onPointerUp, wasDrag }
 }
 
 const fmtLong = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()
@@ -194,6 +194,17 @@ export default function Schedule() {
     [...new Set(events.map(e => e.country).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
     [events])
 
+  // how many upcoming events each artist has under the CURRENT country filter
+  const countByArtist = useMemo(() => {
+    const m = {}
+    for (const e of events) {
+      if (!e.artist_name) continue
+      if (selCountries.length && !selCountries.includes(e.country)) continue
+      m[e.artist_name] = (m[e.artist_name] || 0) + 1
+    }
+    return m
+  }, [events, selCountries])
+
   const toggleArtist = name => setSelArtists(cur =>
     cur.includes(name) ? cur.filter(n => n !== name) : [...cur, name])
   const toggleCountry = c => setSelCountries(cur =>
@@ -262,6 +273,7 @@ export default function Schedule() {
             onPointerDown={belt.onPointerDown}
             onPointerMove={belt.onPointerMove}
             onPointerUp={belt.onPointerUp}
+            onPointerLeave={belt.onPointerLeave}
             style={{
               display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 12,
               cursor: 'grab', userSelect: 'none', WebkitOverflowScrolling: 'touch',
@@ -270,6 +282,8 @@ export default function Schedule() {
             {beltArtists.map(a => {
               const on = selArtists.includes(a.name)
               const photo = a.profile?.portal_avatar || a.profile?.image || ''
+              const count = countByArtist[a.name] || 0
+              const dimmed = (selArtists.length && !on) || (selCountries.length && count === 0)
               return (
                 <button key={a.name}
                   onClick={() => { if (!belt.wasDrag()) toggleArtist(a.name) }}
@@ -278,14 +292,25 @@ export default function Schedule() {
                     cursor: 'pointer', fontFamily: 'inherit', padding: 0,
                   }}>
                   <div style={{
+                    position: 'relative',
                     width: 62, height: 62, margin: '0 auto 6px', borderRadius: '50%',
                     padding: 3, background: on ? 'var(--volt-grad)' : 'var(--line)',
                     transition: 'background 0.2s',
                   }}>
+                    {selCountries.length > 0 && count > 0 && (
+                      <span style={{
+                        position: 'absolute', top: -4, right: -4, zIndex: 2,
+                        minWidth: 20, height: 20, padding: '0 5px', borderRadius: 10,
+                        background: 'var(--volt-grad)', color: '#14120A',
+                        fontSize: '0.62rem', fontWeight: 800,
+                        display: 'grid', placeItems: 'center',
+                        border: '2px solid var(--bg)',
+                      }}>{count}</span>
+                    )}
                     {photo ? (
                       <img src={photo} alt={a.name} draggable={false} loading="lazy" style={{
                         width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover',
-                        display: 'block', opacity: selArtists.length && !on ? 0.45 : 1,
+                        display: 'block', opacity: dimmed ? 0.35 : 1,
                         transition: 'opacity 0.2s',
                       }} />
                     ) : (
@@ -293,7 +318,7 @@ export default function Schedule() {
                         width: '100%', height: '100%', borderRadius: '50%',
                         background: 'var(--card)', display: 'grid', placeItems: 'center',
                         fontWeight: 800, color: on ? 'var(--volt)' : 'var(--dim)',
-                        opacity: selArtists.length && !on ? 0.45 : 1,
+                        opacity: dimmed ? 0.35 : 1,
                       }}>{a.name[0]}</div>
                     )}
                   </div>
