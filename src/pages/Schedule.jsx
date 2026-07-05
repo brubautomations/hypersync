@@ -1,74 +1,96 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
 import { fetchData } from '../lib/api'
 import { useReveal } from '../lib/useReveal'
 
-const TYPE_ICONS = {
-  CONCERT: '🎤', FESTIVAL: '🎪', 'FAN MEET': '💛', 'ALBUM RELEASE': '💿',
-  'SINGLE RELEASE': '🎵', COMEBACK: '✨', 'AWARD SHOW': '🏆',
-  'TV GUESTING': '📺', 'VARIETY SHOW': '📺', MOVIE: '🎬', DRAMA: '🎬',
-}
+const fmtLong = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()
+const iso = d => d.toISOString().split('T')[0]
 
-function fmtDay(d) {
-  return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-}
-function monthOf(d) {
-  return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-}
-
-// One tour (or standalone event) = one card, legs listed inside
-function TourCard({ tour, artistId }) {
-  const [open, setOpen] = useState(false)
-  const legs = tour.legs
-  const shown = open ? legs : legs.slice(0, 3)
-  const icon = TYPE_ICONS[(tour.event_type || '').toUpperCase()] || '🎤'
-
+// ── EVENT DETAIL MODAL — artist photo as the backdrop ──
+function EventModal({ event, artist, onClose }) {
+  const photo = artist?.portal_banner || artist?.portal_avatar || artist?.image || ''
   return (
-    <article className="card reveal" style={{ padding: '18px 20px' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: legs.length ? 12 : 0 }}>
-        <span style={{ fontSize: '1.3rem', lineHeight: 1 }}>{icon}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {artistId
-            ? <Link to={`/artists/${artistId}`} className="eyebrow eyebrow--volt" style={{ display: 'inline-block', marginBottom: 4 }}>{tour.artist}</Link>
-            : <div className="eyebrow eyebrow--volt" style={{ marginBottom: 4 }}>{tour.artist}</div>}
-          <h3 style={{ fontWeight: 800, fontSize: '1rem', lineHeight: 1.3 }}>{tour.title}</h3>
-        </div>
-        {legs.length > 1 && (
-          <span className="chip chip--pulse" style={{ cursor: 'default', flexShrink: 0 }}>{legs.length} dates</span>
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(8,8,12,0.82)',
+      backdropFilter: 'blur(8px)', display: 'grid', placeItems: 'center', padding: 18,
+    }}>
+      <div onClick={e => e.stopPropagation()} className="card" style={{
+        position: 'relative', width: 'min(94vw, 540px)', overflow: 'hidden',
+        minHeight: 380, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+      }}>
+        {photo && (
+          <img src={photo} alt="" style={{
+            position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+          }} />
         )}
-      </div>
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(180deg, rgba(10,10,14,0.25) 0%, rgba(10,10,14,0.88) 72%, rgba(10,10,14,0.97) 100%)',
+        }} />
+        <button onClick={onClose} style={{
+          position: 'absolute', top: 12, right: 12, zIndex: 2, width: 34, height: 34,
+          borderRadius: '50%', border: '1px solid var(--line)', background: 'rgba(12,12,17,0.7)',
+          color: 'var(--text)', cursor: 'pointer', fontSize: '1rem',
+        }}>✕</button>
 
-      <div style={{ display: 'grid', gap: 8 }}>
-        {shown.map(l => (
-          <div key={l.id} style={{
-            display: 'flex', alignItems: 'center', gap: 12, padding: '9px 12px',
-            background: 'var(--panel)', borderRadius: 'var(--r-sm)', border: '1px solid var(--line)',
-          }}>
-            <div style={{ minWidth: 92, fontWeight: 800, fontSize: '0.78rem', color: 'var(--volt)' }}>
-              {fmtDay(l.event_date)}
+        <div style={{ position: 'relative', zIndex: 1, padding: '26px 26px 28px' }}>
+          <div className="eyebrow eyebrow--volt" style={{ marginBottom: 8 }}>{event.artist_name}</div>
+          <h2 className="display" style={{ fontSize: 'clamp(1.5rem, 4.5vw, 2.2rem)', lineHeight: 1.05, marginBottom: 12 }}>
+            {event.event_name}
+          </h2>
+          <div className="display volt-text" style={{ fontSize: 'clamp(1rem, 2.6vw, 1.3rem)', letterSpacing: '0.04em', marginBottom: 6 }}>
+            {fmtLong(event.event_date)}
+          </div>
+          {(event.venue || event.city || event.country) && (
+            <div className="eyebrow" style={{ color: 'var(--text)', fontSize: '0.8rem', marginBottom: 18 }}>
+              {[event.venue, event.city, event.country].filter(Boolean).join(', ')}
             </div>
-            <div style={{ flex: 1, minWidth: 0, fontSize: '0.8rem', color: 'var(--dim)' }}>
-              {[l.venue, l.city, l.country].filter(Boolean).join(', ') || '—'}
-            </div>
-            {l.ticket_url && l.source !== 'gemini_web_search' && (
-              <a href={l.ticket_url} target="_blank" rel="noopener noreferrer"
-                className="chip chip--volt-line" style={{ flexShrink: 0, fontSize: '0.58rem' }}>
-                Tickets
+          )}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            {event.event_type && <span className="chip" style={{ cursor: 'default' }}>{event.event_type}</span>}
+            {event.ticket_url && (
+              <a href={event.ticket_url} target="_blank" rel="noopener noreferrer" className="btn btn--volt">
+                Get tickets
               </a>
             )}
           </div>
-        ))}
+        </div>
       </div>
+    </div>
+  )
+}
 
-      {legs.length > 3 && (
-        <button onClick={() => setOpen(o => !o)} style={{
-          background: 'none', border: 'none', color: 'var(--volt)', fontWeight: 700,
-          cursor: 'pointer', fontSize: '0.78rem', marginTop: 10, padding: 0, fontFamily: 'inherit',
-        }}>
-          {open ? 'Show less' : `All ${legs.length} dates →`}
-        </button>
-      )}
-    </article>
+// ── DAY MODAL — a date's full lineup ──
+function DayModal({ date, events, onPick, onClose }) {
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, zIndex: 190, background: 'rgba(8,8,12,0.8)',
+      backdropFilter: 'blur(8px)', display: 'grid', placeItems: 'center', padding: 18,
+    }}>
+      <div onClick={e => e.stopPropagation()} className="card" style={{ width: 'min(94vw, 440px)', padding: '22px 22px 18px' }}>
+        <div className="display volt-text" style={{ fontSize: '1.1rem', letterSpacing: '0.04em', marginBottom: 14 }}>
+          {fmtLong(date)}
+        </div>
+        <div style={{ display: 'grid', gap: 8, maxHeight: '55vh', overflowY: 'auto' }}>
+          {events.map(e => (
+            <button key={e.id} onClick={() => onPick(e)} style={{
+              textAlign: 'left', padding: '12px 14px', background: 'var(--panel)',
+              border: '1px solid var(--line)', borderRadius: 'var(--r-sm)', cursor: 'pointer',
+              color: 'var(--text)', fontFamily: 'inherit',
+            }}>
+              <div style={{ fontWeight: 800, fontSize: '0.72rem', color: 'var(--volt)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>
+                {e.artist_name}
+              </div>
+              <div style={{ fontSize: '0.84rem', fontWeight: 600 }}>{e.event_name}</div>
+              {(e.city || e.country) && (
+                <div style={{ fontSize: '0.7rem', color: 'var(--faint)', marginTop: 3 }}>
+                  {[e.city, e.country].filter(Boolean).join(', ')}
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -77,8 +99,12 @@ export default function Schedule() {
   const [events, setEvents] = useState([])
   const [artists, setArtists] = useState([])
   const [loading, setLoading] = useState(true)
+  const [view, setView] = useState('calendar')
   const [artist, setArtist] = useState('All')
   const [country, setCountry] = useState('All')
+  const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
+  const [selected, setSelected] = useState(null)
+  const [dayOpen, setDayOpen] = useState(null)
 
   useEffect(() => {
     Promise.allSettled([fetchData('schedule'), fetchData('artists')]).then(([s, a]) => {
@@ -88,97 +114,194 @@ export default function Schedule() {
     })
   }, [])
 
-  const artistIdByName = useMemo(() => {
+  const artistByName = useMemo(() => {
     const m = {}
-    artists.forEach(a => { m[(a.name || '').toLowerCase()] = a.id })
+    artists.forEach(a => { m[(a.name || '').toLowerCase()] = a })
     return m
   }, [artists])
 
+  const filtered = useMemo(() =>
+    events
+      .filter(e => artist === 'All' || e.artist_name === artist)
+      .filter(e => country === 'All' || e.country === country),
+    [events, artist, country])
+
+  const byDate = useMemo(() => {
+    const m = new Map()
+    for (const e of filtered) {
+      if (!e.event_date) continue
+      if (!m.has(e.event_date)) m.set(e.event_date, [])
+      m.get(e.event_date).push(e)
+    }
+    return m
+  }, [filtered])
+
   const artistNames = useMemo(() =>
     ['All', ...new Set(events.map(e => e.artist_name).filter(Boolean))].sort((a, b) =>
-      a === 'All' ? -1 : b === 'All' ? 1 : a.localeCompare(b)),
-    [events])
-
+      a === 'All' ? -1 : b === 'All' ? 1 : a.localeCompare(b)), [events])
   const countries = useMemo(() =>
     ['All', ...new Set(events.map(e => e.country).filter(Boolean))].sort((a, b) =>
-      a === 'All' ? -1 : b === 'All' ? 1 : a.localeCompare(b)),
-    [events])
+      a === 'All' ? -1 : b === 'All' ? 1 : a.localeCompare(b)), [events])
 
-  // Filter → group into tours → group tours by starting month
-  const months = useMemo(() => {
-    const filtered = events
-      .filter(e => artist === 'All' || e.artist_name === artist)
-      .filter(e => country === 'All' || e.country === country)
-
-    const tours = new Map()
-    for (const e of filtered) {
-      const key = e.tour_key || `${e.artist_name}|${e.event_name}|${e.id}`
-      if (!tours.has(key)) {
-        tours.set(key, { key, artist: e.artist_name, title: e.event_name, event_type: e.event_type, legs: [] })
-      }
-      tours.get(key).legs.push(e)
+  // calendar grid for the visible month
+  const cells = useMemo(() => {
+    const first = new Date(month)
+    const startPad = first.getDay() // Sun = 0
+    const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
+    const out = []
+    for (let i = 0; i < startPad; i++) out.push(null)
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = iso(new Date(Date.UTC(month.getFullYear(), month.getMonth(), d)))
+      out.push({ day: d, date, events: byDate.get(date) || [] })
     }
+    return out
+  }, [month, byDate])
 
-    const list = [...tours.values()]
-    list.forEach(t => t.legs.sort((a, b) => (a.event_date || '').localeCompare(b.event_date || '')))
-    list.sort((a, b) => (a.legs[0]?.event_date || '').localeCompare(b.legs[0]?.event_date || ''))
+  const monthLabel = month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const todayIso = iso(new Date(Date.now() + 8 * 3600 * 1000))
 
-    const byMonth = new Map()
-    for (const t of list) {
-      const m = monthOf(t.legs[0].event_date)
-      if (!byMonth.has(m)) byMonth.set(m, [])
-      byMonth.get(m).push(t)
-    }
-    return [...byMonth.entries()]
-  }, [events, artist, country])
+  // list view: filtered, upcoming, chronological
+  const listRows = useMemo(() =>
+    [...filtered].sort((a, b) => (a.event_date || '').localeCompare(b.event_date || '')),
+    [filtered])
 
   return (
     <div ref={rootRef} className="wrap section">
-      <div style={{ marginBottom: 'clamp(24px, 4vw, 40px)' }}>
+      <div className="section-head" style={{ marginBottom: 'clamp(20px, 3vw, 32px)' }}>
         <h1 className="display" style={{ fontSize: 'clamp(2.4rem, 7vw, 4.5rem)' }}>Schedule</h1>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className={view === 'calendar' ? 'chip chip--on' : 'chip'} onClick={() => setView('calendar')}>Calendar</button>
+          <button className={view === 'list' ? 'chip chip--on' : 'chip'} onClick={() => setView('list')}>List</button>
+        </div>
       </div>
 
       {/* filters */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {countries.map(c => (
-            <button key={c} className={c === country ? 'chip chip--on' : 'chip'} onClick={() => setCountry(c)}>
-              {c}
-            </button>
+            <button key={c} className={c === country ? 'chip chip--on' : 'chip'} onClick={() => setCountry(c)}>{c}</button>
           ))}
         </div>
         {artistNames.length > 2 && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {artistNames.map(a => (
-              <button key={a} className={a === artist ? 'chip chip--on' : 'chip'} onClick={() => setArtist(a)}>
-                {a}
-              </button>
+              <button key={a} className={a === artist ? 'chip chip--on' : 'chip'} onClick={() => setArtist(a)}>{a}</button>
             ))}
           </div>
         )}
       </div>
 
       {loading ? (
-        <div style={{ display: 'grid', gap: 14 }}>
-          {[...Array(4)].map((_, i) => <div key={i} className="card" style={{ height: 120, opacity: 0.4 }} />)}
-        </div>
-      ) : !months.length ? (
-        <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--dim)' }}>
-          Nothing scheduled for this filter yet.
-        </div>
+        <div className="card" style={{ height: 420, opacity: 0.4 }} />
+      ) : view === 'calendar' ? (
+        <>
+          {/* month nav */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <button className="chip" onClick={() => setMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}>←</button>
+            <div className="display" style={{ fontSize: 'clamp(1.1rem, 3vw, 1.5rem)' }}>{monthLabel}</div>
+            <button className="chip" onClick={() => setMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}>→</button>
+          </div>
+
+          {/* weekday header */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6, marginBottom: 6 }}>
+            {['SUN','MON','TUE','WED','THU','FRI','SAT'].map(d => (
+              <div key={d} style={{ textAlign: 'center', fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.1em', color: 'var(--faint)' }}>{d}</div>
+            ))}
+          </div>
+
+          {/* grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6 }}>
+            {cells.map((c, i) => c === null ? <div key={`pad-${i}`} /> : (
+              <div key={c.date}
+                onClick={() => c.events.length && setDayOpen(c.date)}
+                style={{
+                  minHeight: 'clamp(64px, 9vw, 108px)', padding: '6px 6px',
+                  background: 'var(--card)', border: '1px solid var(--line)',
+                  borderRadius: 'var(--r-sm)', overflow: 'hidden',
+                  cursor: c.events.length ? 'pointer' : 'default',
+                  outline: c.date === todayIso ? '1px solid var(--volt)' : 'none',
+                }}>
+                <div style={{
+                  fontSize: '0.66rem', fontWeight: 800, marginBottom: 4,
+                  color: c.date === todayIso ? 'var(--volt)' : c.events.length ? 'var(--text)' : 'var(--faint)',
+                }}>{c.day}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {c.events.slice(0, 3).map(e => (
+                    <div key={e.id}
+                      onClick={ev => { ev.stopPropagation(); setSelected(e) }}
+                      style={{
+                        fontSize: '0.56rem', fontWeight: 800, letterSpacing: '0.04em',
+                        textTransform: 'uppercase', color: '#14120A',
+                        background: 'var(--volt-grad)', borderRadius: 4,
+                        padding: '2px 5px', whiteSpace: 'nowrap', overflow: 'hidden',
+                        textOverflow: 'ellipsis', cursor: 'pointer',
+                      }}>
+                      {e.artist_name}
+                    </div>
+                  ))}
+                  {c.events.length > 3 && (
+                    <div style={{ fontSize: '0.56rem', fontWeight: 700, color: 'var(--volt)' }}>
+                      +{c.events.length - 3} more
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       ) : (
-        months.map(([month, tours]) => (
-          <section key={month} style={{ marginBottom: 36 }}>
-            <div className="eyebrow" style={{ color: 'var(--text)', marginBottom: 14, paddingBottom: 8, borderBottom: '1px solid var(--line)' }}>
-              {month}
-            </div>
-            <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fill, minmax(min(88vw, 340px), 1fr))' }}>
-              {tours.map(t => (
-                <TourCard key={t.key} tour={t} artistId={artistIdByName[(t.artist || '').toLowerCase()]} />
-              ))}
-            </div>
-          </section>
-        ))
+        /* ── LIST VIEW ── */
+        !listRows.length ? (
+          <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--dim)' }}>
+            Nothing scheduled for this filter yet.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: 8, maxWidth: 760 }}>
+            {listRows.map(e => (
+              <button key={e.id} onClick={() => setSelected(e)} className="card card--lift reveal" style={{
+                display: 'flex', alignItems: 'center', gap: 16, padding: '14px 18px',
+                textAlign: 'left', cursor: 'pointer', border: '1px solid var(--line)',
+                background: 'var(--card)', color: 'var(--text)', fontFamily: 'inherit', width: '100%',
+              }}>
+                <div style={{ minWidth: 64, textAlign: 'center', flexShrink: 0 }}>
+                  <div className="display volt-text" style={{ fontSize: '1.4rem', lineHeight: 1 }}>
+                    {new Date(e.event_date + 'T00:00:00').getDate()}
+                  </div>
+                  <div style={{ fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.1em', color: 'var(--faint)', textTransform: 'uppercase' }}>
+                    {new Date(e.event_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
+                  </div>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--volt)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>
+                    {e.artist_name}
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {e.event_name}
+                  </div>
+                  {(e.city || e.country) && (
+                    <div style={{ fontSize: '0.7rem', color: 'var(--faint)', marginTop: 2 }}>
+                      {[e.venue, e.city, e.country].filter(Boolean).join(', ')}
+                    </div>
+                  )}
+                </div>
+                {e.event_type && (
+                  <span className="chip" style={{ cursor: 'default', flexShrink: 0, fontSize: '0.56rem' }}>{e.event_type}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )
+      )}
+
+      {dayOpen && (
+        <DayModal date={dayOpen} events={byDate.get(dayOpen) || []}
+          onPick={e => { setDayOpen(null); setSelected(e) }}
+          onClose={() => setDayOpen(null)} />
+      )}
+      {selected && (
+        <EventModal event={selected}
+          artist={artistByName[(selected.artist_name || '').toLowerCase()]}
+          onClose={() => setSelected(null)} />
       )}
     </div>
   )
