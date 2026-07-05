@@ -94,7 +94,6 @@ function Hero({ slides }) {
               <span className="sync-dot" />{countdown}
             </span>
           )}
-          {s.date && <span className="chip" style={{ cursor: 'default' }}>{fmtDate(s.date)}</span>}
         </div>
 
         {s.artist && (
@@ -105,9 +104,16 @@ function Hero({ slides }) {
           {s.title}
         </h1>
 
+        {s.date && (
+          <div className="display volt-text" style={{
+            fontSize: 'clamp(1rem, 2.4vw, 1.5rem)', marginTop: 16, letterSpacing: '0.04em',
+          }}>
+            {new Date(s.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()}
+          </div>
+        )}
         {(s.venue || s.city || s.country) && (
           <div className="eyebrow" style={{
-            color: 'var(--text)', marginTop: 14, fontSize: '0.82rem',
+            color: 'var(--text)', marginTop: 6, fontSize: '0.85rem',
             textShadow: '0 2px 10px rgba(0,0,0,0.7)',
           }}>
             {[s.venue, s.city, s.country].filter(Boolean).join(', ')}
@@ -236,8 +242,7 @@ export default function Home() {
       const byName = indexArtistsByName(artistList)
       if (ann.status === 'fulfilled') {
         const today = new Date().toISOString().split('T')[0]
-        const upcoming = ann.value.filter(a =>
-          a.date && a.date >= today && (!a.show_from || a.show_from <= today))
+        const upcoming = ann.value.filter(a => a.date && a.date >= today)
         // One slide per tour; explicit image → artist banner → gradient
         setAnnouncements(
           groupAnnouncements(upcoming).slice(0, 8).map(a => ({

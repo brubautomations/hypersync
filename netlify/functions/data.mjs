@@ -90,9 +90,9 @@ const RESOURCES = {
   },
 
   schedule: async () => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date(Date.now() + 8 * 3600 * 1000).toISOString().split("T")[0];
     const rows = await atList(TABLES.SCHEDULE, {
-      filterByFormula: `{event_date}>='${today}'`,
+      filterByFormula: `AND({event_date}>='${today}',NOT({hide}))`,
       sort: [{ field: "event_date", direction: "asc" }],
     });
     return rows.map((r) => ({
@@ -105,63 +105,34 @@ const RESOURCES = {
       country: r["country"] || "",
       event_date: r["event_date"] || "",
       ticket_url: r["ticket_url"] || "",
+      image_url: r["image_url"] || "",
       source: r["source"] || "",
       tour_key: r["tour_key"] || "",
     }));
   },
 
   announcements: async () => {
-    const [rows, sched] = await Promise.all([
-      atList(TABLES.ANNOUNCEMENTS, { filterByFormula: "{active}=1" }),
-      atList(TABLES.SCHEDULE, {
-        filterByFormula: `{event_date}>='${new Date().toISOString().split("T")[0]}'`,
-      }),
-    ]);
-    // Three lookup maps: exact schedule_id, tour_key+date, and
-    // tour_key alone → NEXT upcoming leg (rescues orphaned announcements
-    // whose original schedule rows were purged)
-    const byId = {};
-    const byTourDate = {};
-    const byTour = {};
-    const sorted = [...sched].sort((a, b) =>
-      (a["event_date"] || "").localeCompare(b["event_date"] || ""));
-    for (const s of sorted) {
-      const loc = {
-        venue: s["venue"] || "",
-        city: s["city"] || "",
-        country: s["country"] || "",
-        event_type: s["event_type"] || "",
-        date: s["event_date"] || "",
-      };
-      if (s["id"]) byId[s["id"]] = loc;
-      byId[s.id] = loc;
-      if (s["tour_key"]) {
-        if (s["event_date"]) byTourDate[`${s["tour_key"]}__${s["event_date"]}`] = loc;
-        if (!byTour[s["tour_key"]]) byTour[s["tour_key"]] = loc; // earliest wins
-      }
-    }
-    return rows.map((r) => {
-      const loc =
-        byId[r["schedule_id"]] ||
-        byTourDate[`${r["tour_key"] || ""}__${r["override_date"] || ""}`] ||
-        byTour[r["tour_key"] || ""] ||
-        {};
-      return {
-        id: r.id,
-        schedule_id: r["schedule_id"] || "",
-        title: r["override_title"] || "",
-        artist: r["override_artist"] || "",
-        date: r["override_date"] || "",
-        image: r["image_url"] || "",
-        text: r["custom_text"] || "",
-        tour_key: r["tour_key"] || "",
-        show_from: r["show_from"] || "",
-        venue: loc.venue || "",
-        city: loc.city || "",
-        country: loc.country || "",
-        event_type: loc.event_type || "",
-      };
+    // v4: single source of truth — the hero feeds straight from SCHEDULES.
+    // Every verified, unhidden, upcoming event announces itself.
+    const today = new Date(Date.now() + 8 * 3600 * 1000).toISOString().split("T")[0];
+    const rows = await atList(TABLES.SCHEDULE, {
+      filterByFormula: `AND({event_date}>='${today}',NOT({hide}))`,
+      sort: [{ field: "event_date", direction: "asc" }],
     });
+    return rows.map((r) => ({
+      id: r.id,
+      title: r["event_name"] || "",
+      artist: r["artist_name"] || "",
+      date: r["event_date"] || "",
+      image: r["image_url"] || "",
+      tour_key: r["tour_key"] || "",
+      venue: r["venue"] === "TBA" ? "" : (r["venue"] || ""),
+      city: r["city"] || "",
+      country: r["country"] || "",
+      event_type: r["event_type"] || "",
+      ticket_url: r["ticket_url"] || "",
+      source: r["source"] || "",
+    }));
   },
 
   merch: async () => {
