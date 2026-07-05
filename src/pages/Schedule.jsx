@@ -2,6 +2,48 @@ import { useState, useEffect, useMemo } from 'react'
 import { fetchData } from '../lib/api'
 import { useReveal } from '../lib/useReveal'
 
+
+// country name → ISO code → emoji flag (choice (a): native emoji, no assets)
+const COUNTRY_CODES = {
+  'philippines': 'PH', 'south korea': 'KR', 'korea': 'KR', 'japan': 'JP', 'china': 'CN',
+  'taiwan': 'TW', 'hong kong': 'HK', 'macao': 'MO', 'macau': 'MO', 'thailand': 'TH',
+  'vietnam': 'VN', 'indonesia': 'ID', 'malaysia': 'MY', 'singapore': 'SG', 'india': 'IN',
+  'bangladesh': 'BD', 'sri lanka': 'LK', 'nepal': 'NP', 'kazakhstan': 'KZ', 'myanmar': 'MM',
+  'cambodia': 'KH', 'australia': 'AU', 'new zealand': 'NZ', 'usa': 'US', 'united states': 'US',
+  'uk': 'GB', 'united kingdom': 'GB', 'france': 'FR', 'germany': 'DE', 'spain': 'ES',
+  'italy': 'IT', 'netherlands': 'NL', 'belgium': 'BE', 'switzerland': 'CH', 'austria': 'AT',
+  'sweden': 'SE', 'denmark': 'DK', 'norway': 'NO', 'finland': 'FI', 'portugal': 'PT',
+  'ireland': 'IE', 'czech republic': 'CZ', 'poland': 'PL', 'luxembourg': 'LU', 'cyprus': 'CY',
+  'canada': 'CA', 'mexico': 'MX', 'brazil': 'BR', 'argentina': 'AR', 'chile': 'CL',
+  'peru': 'PE', 'colombia': 'CO',
+}
+function flagOf(country) {
+  const code = COUNTRY_CODES[(country || '').toLowerCase().trim()]
+  if (!code) return null
+  return String.fromCodePoint(...[...code].map(c => 0x1F1E6 + c.charCodeAt(0) - 65))
+}
+
+// drag-to-scroll belt (NXG-style): grab, drag, momentum via native scroll
+function useBelt() {
+  const ref = { current: null }
+  const state = { down: false, startX: 0, scrollLeft: 0, moved: 0 }
+  const onPointerDown = e => {
+    const el = e.currentTarget
+    state.down = true; state.moved = 0
+    state.startX = e.clientX; state.scrollLeft = el.scrollLeft
+    el.setPointerCapture(e.pointerId)
+  }
+  const onPointerMove = e => {
+    if (!state.down) return
+    const dx = e.clientX - state.startX
+    state.moved = Math.max(state.moved, Math.abs(dx))
+    e.currentTarget.scrollLeft = state.scrollLeft - dx
+  }
+  const onPointerUp = e => { state.down = false; e.currentTarget.releasePointerCapture(e.pointerId) }
+  const wasDrag = () => state.moved > 6
+  return { onPointerDown, onPointerMove, onPointerUp, wasDrag }
+}
+
 const fmtLong = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()
 const iso = d => d.toISOString().split('T')[0]
 
@@ -100,8 +142,8 @@ export default function Schedule() {
   const [artists, setArtists] = useState([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState('calendar')
-  const [artist, setArtist] = useState('All')
-  const [country, setCountry] = useState('All')
+  const [selArtists, setSelArtists] = useState([])   // empty = all
+  const [selCountries, setSelCountries] = useState([]) // empty = all
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [selected, setSelected] = useState(null)
   const [dayOpen, setDayOpen] = useState(null)
@@ -122,9 +164,9 @@ export default function Schedule() {
 
   const filtered = useMemo(() =>
     events
-      .filter(e => artist === 'All' || e.artist_name === artist)
-      .filter(e => country === 'All' || e.country === country),
-    [events, artist, country])
+      .filter(e => !selArtists.length || selArtists.includes(e.artist_name))
+      .filter(e => !selCountries.length || selCountries.includes(e.country)),
+    [events, selArtists, selCountries])
 
   const byDate = useMemo(() => {
     const m = new Map()
@@ -136,12 +178,27 @@ export default function Schedule() {
     return m
   }, [filtered])
 
-  const artistNames = useMemo(() =>
-    ['All', ...new Set(events.map(e => e.artist_name).filter(Boolean))].sort((a, b) =>
-      a === 'All' ? -1 : b === 'All' ? 1 : a.localeCompare(b)), [events])
+  // artists on the belt: only those with events, ordered by SOONEST event
+  const beltArtists = useMemo(() => {
+    const nearest = {}
+    for (const e of events) {
+      if (!e.artist_name || !e.event_date) continue
+      if (!nearest[e.artist_name] || e.event_date < nearest[e.artist_name]) nearest[e.artist_name] = e.event_date
+    }
+    return Object.keys(nearest)
+      .sort((a, b) => nearest[a].localeCompare(nearest[b]))
+      .map(name => ({ name, next: nearest[name], profile: artistByName[name.toLowerCase()] }))
+  }, [events, artistByName])
+
   const countries = useMemo(() =>
-    ['All', ...new Set(events.map(e => e.country).filter(Boolean))].sort((a, b) =>
-      a === 'All' ? -1 : b === 'All' ? 1 : a.localeCompare(b)), [events])
+    [...new Set(events.map(e => e.country).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [events])
+
+  const toggleArtist = name => setSelArtists(cur =>
+    cur.includes(name) ? cur.filter(n => n !== name) : [...cur, name])
+  const toggleCountry = c => setSelCountries(cur =>
+    cur.includes(c) ? cur.filter(n => n !== c) : [...cur, c])
+  const belt = useBelt()
 
   // calendar grid for the visible month
   const cells = useMemo(() => {
@@ -175,21 +232,91 @@ export default function Schedule() {
         </div>
       </div>
 
-      {/* filters */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {countries.map(c => (
-            <button key={c} className={c === country ? 'chip chip--on' : 'chip'} onClick={() => setCountry(c)}>{c}</button>
-          ))}
-        </div>
-        {artistNames.length > 2 && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {artistNames.map(a => (
-              <button key={a} className={a === artist ? 'chip chip--on' : 'chip'} onClick={() => setArtist(a)}>{a}</button>
-            ))}
-          </div>
-        )}
+      {/* ── flag strip: the world map of coverage ── */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 18 }}>
+        {countries.map(c => {
+          const flag = flagOf(c)
+          const on = selCountries.includes(c)
+          return (
+            <button key={c} onClick={() => toggleCountry(c)} title={c} style={{
+              width: 40, height: 32, display: 'grid', placeItems: 'center',
+              fontSize: flag ? '1.15rem' : '0.58rem', fontWeight: 800, letterSpacing: '0.04em',
+              background: on ? 'var(--volt-grad)' : 'var(--card)',
+              color: on ? '#14120A' : 'var(--dim)',
+              border: on ? '1px solid var(--volt)' : '1px solid var(--line)',
+              borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit',
+              transition: 'transform 0.15s', lineHeight: 1,
+            }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
+              {flag || c.slice(0, 3).toUpperCase()}
+            </button>
+          )
+        })}
       </div>
+
+      {/* ── artist belt: soonest event first, drag + multi-select ── */}
+      {beltArtists.length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <div
+            onPointerDown={belt.onPointerDown}
+            onPointerMove={belt.onPointerMove}
+            onPointerUp={belt.onPointerUp}
+            style={{
+              display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 12,
+              cursor: 'grab', userSelect: 'none', WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'none',
+            }}>
+            {beltArtists.map(a => {
+              const on = selArtists.includes(a.name)
+              const photo = a.profile?.portal_avatar || a.profile?.image || ''
+              return (
+                <button key={a.name}
+                  onClick={() => { if (!belt.wasDrag()) toggleArtist(a.name) }}
+                  style={{
+                    flexShrink: 0, width: 74, background: 'none', border: 'none',
+                    cursor: 'pointer', fontFamily: 'inherit', padding: 0,
+                  }}>
+                  <div style={{
+                    width: 62, height: 62, margin: '0 auto 6px', borderRadius: '50%',
+                    padding: 3, background: on ? 'var(--volt-grad)' : 'var(--line)',
+                    transition: 'background 0.2s',
+                  }}>
+                    {photo ? (
+                      <img src={photo} alt={a.name} draggable={false} loading="lazy" style={{
+                        width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover',
+                        display: 'block', opacity: selArtists.length && !on ? 0.45 : 1,
+                        transition: 'opacity 0.2s',
+                      }} />
+                    ) : (
+                      <div style={{
+                        width: '100%', height: '100%', borderRadius: '50%',
+                        background: 'var(--card)', display: 'grid', placeItems: 'center',
+                        fontWeight: 800, color: on ? 'var(--volt)' : 'var(--dim)',
+                        opacity: selArtists.length && !on ? 0.45 : 1,
+                      }}>{a.name[0]}</div>
+                    )}
+                  </div>
+                  <div style={{
+                    fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.05em',
+                    textTransform: 'uppercase', textAlign: 'center',
+                    color: on ? 'var(--volt)' : 'var(--dim)',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  }}>{a.name}</div>
+                </button>
+              )
+            })}
+          </div>
+          {(selArtists.length > 0 || selCountries.length > 0) && (
+            <button className="chip chip--volt-line" style={{ marginTop: 2 }}
+              onClick={() => { setSelArtists([]); setSelCountries([]) }}>
+              {[selArtists.length && `${selArtists.length} artist${selArtists.length > 1 ? 's' : ''}`,
+                selCountries.length && `${selCountries.length} countr${selCountries.length > 1 ? 'ies' : 'y'}`]
+                .filter(Boolean).join(' · ')} — clear
+            </button>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div className="card" style={{ height: 420, opacity: 0.4 }} />
