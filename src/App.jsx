@@ -6,6 +6,7 @@ import Home from './pages/Home'
 import Artists from './pages/Artists'
 import ArtistDetail from './pages/ArtistDetail'
 import Feed from './pages/Feed'
+import Schedule from './pages/Schedule'
 
 // Phase 2–4 pages land here. Placeholder keeps routes stable meanwhile.
 function ComingSoon({ label }) {
@@ -33,7 +34,7 @@ export default function App() {
             <Route path="/artists" element={<Artists />} />
             <Route path="/artists/:id" element={<ArtistDetail />} />
             <Route path="/feed" element={<Feed />} />
-            <Route path="/schedule" element={<ComingSoon label="Schedule" />} />
+            <Route path="/schedule" element={<Schedule />} />
             <Route path="/shop" element={<ComingSoon label="Shop" />} />
             <Route path="*" element={<ComingSoon label="Page" />} />
           </Routes>

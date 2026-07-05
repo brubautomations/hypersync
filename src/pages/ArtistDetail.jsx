@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { fetchData } from '../lib/api'
+import PostCard from '../components/PostCard'
 import { useReveal } from '../lib/useReveal'
 import { deriveTourKey } from '../lib/tours'
 import { DMModal } from '../components/modals'
@@ -196,31 +197,8 @@ export default function ArtistDetail() {
             <div className="section-head">
               <h2 className="display" style={{ fontSize: 'clamp(1.5rem, 3.5vw, 2.2rem)' }}>Updates</h2>
             </div>
-            <div style={{ display: 'grid', gap: 12 }}>
-              {posts.slice(0, 10).map(p => {
-                const body = (
-                  <div className="card card--lift reveal" style={{ display: 'flex', gap: 16, padding: '16px 18px', alignItems: 'flex-start' }}>
-                    {p.image_urls[0] && (
-                      <img src={p.image_urls[0]} alt="" loading="lazy" style={{
-                        width: 84, height: 84, borderRadius: 'var(--r-sm)', objectFit: 'cover', flexShrink: 0,
-                      }} />
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: '0.9rem', lineHeight: 1.55, marginBottom: 8 }}>
-                        {p.ai_blurb || p.content}
-                      </p>
-                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                        {p.platform && <span className="chip" style={{ cursor: 'default', fontSize: '0.58rem', padding: '3px 9px' }}>{p.platform}</span>}
-                        <span style={{ fontSize: '0.68rem', color: 'var(--faint)' }}>{timeAgo(p.created_at)}</span>
-                        {p.is_exclusive && <span className="chip chip--volt-line" style={{ cursor: 'default', fontSize: '0.58rem', padding: '3px 9px' }}>Exclusive</span>}
-                      </div>
-                    </div>
-                  </div>
-                )
-                return p.source_url
-                  ? <a key={p.id} href={p.source_url} target="_blank" rel="noopener noreferrer">{body}</a>
-                  : <div key={p.id}>{body}</div>
-              })}
+            <div style={{ display: 'grid', gap: 14, maxWidth: 620 }}>
+              {posts.slice(0, 10).map(p => <PostCard key={p.id} post={p} artist={artist} />)}
             </div>
           </section>
         )}

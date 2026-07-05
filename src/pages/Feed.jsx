@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { fetchData } from '../lib/api'
 import { useReveal } from '../lib/useReveal'
+import PostCard from '../components/PostCard'
 
 function timeAgo(dateStr) {
   if (!dateStr) return ''
@@ -58,6 +59,7 @@ function FeedCard({ item }) {
 export default function Feed() {
   const [news, setNews] = useState([])
   const [posts, setPosts] = useState([])
+  const [artistsByName, setArtistsByName] = useState({})
   const [loading, setLoading] = useState(true)
   const [kind, setKind] = useState('All')     // All | News | Updates
   const [artist, setArtist] = useState('All')
@@ -65,6 +67,11 @@ export default function Feed() {
   const rootRef = useReveal()
 
   useEffect(() => {
+    fetchData('artists').then(rows => {
+      const m = {}
+      rows.forEach(a => { m[(a.name || '').toLowerCase()] = a })
+      setArtistsByName(m)
+    }).catch(() => {})
     Promise.allSettled([fetchData('news'), fetchData('posts')]).then(([n, p]) => {
       if (n.status === 'fulfilled') setNews(n.value)
       if (p.status === 'fulfilled') setPosts(p.value)
@@ -80,9 +87,7 @@ export default function Feed() {
         when: n.created_at || n.published,
       })),
       ...posts.map(p => ({
-        kind: 'post', id: `p-${p.id}`, title: p.ai_blurb || p.content,
-        image: p.image_urls?.[0] || '', artist: p.artist_name,
-        platform: p.platform, link: p.source_url, when: p.created_at,
+        kind: 'post', id: `p-${p.id}`, when: p.created_at, artist: p.artist_name, post: p,
       })),
     ]
     return mapped
@@ -129,7 +134,11 @@ export default function Feed() {
             display: 'grid', gap: 14,
             gridTemplateColumns: 'repeat(auto-fill, minmax(min(88vw, 290px), 1fr))',
           }}>
-            {items.slice(0, visible).map(i => <FeedCard key={i.id} item={i} />)}
+            {items.slice(0, visible).map(i => i.kind === 'post'
+              ? <div key={i.id} style={{ gridColumn: '1 / -1', maxWidth: 620 }}>
+                  <PostCard post={i.post} artist={artistsByName[(i.post.artist_name || '').toLowerCase()]} />
+                </div>
+              : <FeedCard key={i.id} item={i} />)}
           </div>
           {visible < items.length && (
             <div style={{ textAlign: 'center', marginTop: 30 }}>
