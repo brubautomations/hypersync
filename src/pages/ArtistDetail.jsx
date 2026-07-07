@@ -24,6 +24,55 @@ function fmtDate(d) {
   return d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
 }
 
+
+// One tour = one card. Long tours collapse to the first 5 legs;
+// "All N dates" unrolls, "Show less" folds back. (The BTS 51-date fix.)
+function TourCard({ tour: t }) {
+  const [open, setOpen] = useState(false)
+  const COLLAPSED = 5
+  const legs = open ? t.legs : t.legs.slice(0, COLLAPSED)
+  const hidden = t.legs.length - COLLAPSED
+
+  return (
+    <div className="card reveal" style={{ padding: '18px 22px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: t.legs.length > 1 ? 12 : 0 }}>
+        <span className="chip chip--on" style={{ cursor: 'default' }}>{t.type || 'Event'}</span>
+        <div style={{ fontWeight: 800, fontSize: '1rem', flex: 1, minWidth: 200 }}>{t.name}</div>
+        {t.legs.length > 1 && (
+          <span className="chip chip--pulse" style={{ cursor: 'default' }}>{t.legs.length} dates</span>
+        )}
+      </div>
+      <div style={{ display: 'grid', gap: 6 }}>
+        {legs.map(l => (
+          <div key={l.id} style={{
+            display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+            fontSize: '0.82rem', color: 'var(--dim)',
+            padding: '8px 0', borderTop: t.legs.length > 1 ? '1px solid var(--line)' : 'none',
+          }}>
+            <span style={{ color: 'var(--volt)', fontWeight: 800, minWidth: 96 }}>{fmtDate(l.event_date)}</span>
+            <span style={{ flex: 1, minWidth: 160 }}>
+              {[l.venue, l.city, l.country].filter(Boolean).join(', ') || 'Details soon'}
+            </span>
+            {l.ticket_url && l.source !== 'gemini_web_search' && (
+              <a href={l.ticket_url} target="_blank" rel="noopener noreferrer"
+                className="chip chip--volt-line">Tickets ↗</a>
+            )}
+          </div>
+        ))}
+      </div>
+      {hidden > 0 && (
+        <button onClick={() => setOpen(o => !o)} style={{
+          background: 'none', border: 'none', color: 'var(--volt)', fontWeight: 800,
+          cursor: 'pointer', fontSize: '0.78rem', marginTop: 10, padding: 0,
+          fontFamily: 'inherit', letterSpacing: '0.03em',
+        }}>
+          {open ? 'Show less' : 'All ' + t.legs.length + ' dates →'}
+        </button>
+      )}
+    </div>
+  )
+}
+
 export default function ArtistDetail() {
   const { id } = useParams()
   const [artist, setArtist] = useState(null)
@@ -163,35 +212,7 @@ export default function ArtistDetail() {
               </h2>
             </div>
             <div style={{ display: 'grid', gap: 14 }}>
-              {tours.map((t, i) => (
-                <div key={i} className="card reveal" style={{ padding: '18px 22px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: t.legs.length > 1 ? 12 : 0 }}>
-                    <span className="chip chip--on" style={{ cursor: 'default' }}>{t.type || 'Event'}</span>
-                    <div style={{ fontWeight: 800, fontSize: '1rem', flex: 1, minWidth: 200 }}>{t.name}</div>
-                    {t.legs.length > 1 && (
-                      <span className="chip chip--pulse" style={{ cursor: 'default' }}>{t.legs.length} dates</span>
-                    )}
-                  </div>
-                  <div style={{ display: 'grid', gap: 6 }}>
-                    {t.legs.map(l => (
-                      <div key={l.id} style={{
-                        display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-                        fontSize: '0.82rem', color: 'var(--dim)',
-                        padding: '8px 0', borderTop: t.legs.length > 1 ? '1px solid var(--line)' : 'none',
-                      }}>
-                        <span style={{ color: 'var(--volt)', fontWeight: 800, minWidth: 96 }}>{fmtDate(l.event_date)}</span>
-                        <span style={{ flex: 1, minWidth: 160 }}>
-                          {[l.venue, l.city, l.country].filter(Boolean).join(', ') || 'Details soon'}
-                        </span>
-                        {l.ticket_url && l.source !== 'gemini_web_search' && (
-                          <a href={l.ticket_url} target="_blank" rel="noopener noreferrer"
-                            className="chip chip--volt-line">Tickets ↗</a>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+              {tours.map((t, i) => <TourCard key={i} tour={t} />)}
             </div>
           </section>
         )}
