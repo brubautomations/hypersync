@@ -171,13 +171,27 @@ const RESOURCES = {
   },
 };
 
+// Ghost-link scrubber: the old backend's file storage is dead; any URL
+// still pointing at it renders as a black void. Blank them at the source.
+const DEAD_HOSTS = ["wrqynyuitxbjacptlqfn.supabase.co"];
+function scrubDead(rows) {
+  if (!Array.isArray(rows)) return rows;
+  for (const row of rows) {
+    for (const k in row) {
+      if (typeof row[k] === "string" && DEAD_HOSTS.some(h => row[k].includes(h))) row[k] = "";
+      if (Array.isArray(row[k])) row[k] = row[k].filter(v => typeof v !== "string" || !DEAD_HOSTS.some(h => v.includes(h)));
+    }
+  }
+  return rows;
+}
+
 export default async function handler(req) {
   const q = new URL(req.url).searchParams;
   const resource = q.get("resource");
   const fn = RESOURCES[resource];
   if (!fn) return err("Unknown resource", 404);
   try {
-    return json(await fn(q), 200, { "Cache-Control": CACHE });
+    return json(scrubDead(await fn(q)), 200, { "Cache-Control": CACHE });
   } catch (e) {
     return err("Data temporarily unavailable", 502);
   }

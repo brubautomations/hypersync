@@ -76,14 +76,16 @@ export default function ArtistDetail() {
     </div>
   )
 
-  const banner = artist.portal_banner || artist.image
+  const [bannerBroken, setBannerBroken] = useState(false)
+  const banner = (!bannerBroken && artist.portal_banner) || artist.image
 
   return (
     <div ref={rootRef}>
       {/* ── BANNER ── */}
       <div style={{ position: 'relative', height: 'min(52vh, 460px)', minHeight: 300, overflow: 'hidden' }}>
         {banner ? (
-          <img src={banner} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 25%' }} />
+          <img src={banner} alt="" onError={() => setBannerBroken(true)}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 25%' }} />
         ) : (
           <div style={{
             width: '100%', height: '100%',
