@@ -69,7 +69,7 @@ export default function Feed() {
   useEffect(() => {
     fetchData('artists').then(rows => {
       const m = {}
-      rows.forEach(a => { m[(a.name || '').toLowerCase()] = a })
+      rows.forEach(a => { m[(a.name || '').trim().toLowerCase()] = a })
       setArtistsByName(m)
     }).catch(() => {})
     Promise.allSettled([fetchData('news'), fetchData('posts')]).then(([n, p]) => {
@@ -136,7 +136,7 @@ export default function Feed() {
           }}>
             {items.slice(0, visible).map(i => i.kind === 'post'
               ? <div key={i.id} style={{ gridColumn: '1 / -1', maxWidth: 620 }}>
-                  <PostCard post={i.post} artist={artistsByName[(i.post.artist_name || '').toLowerCase()]} />
+                  <PostCard post={i.post} artist={artistsByName[(i.post.artist_name || '').trim().toLowerCase()]} />
                 </div>
               : <FeedCard key={i.id} item={i} />)}
           </div>

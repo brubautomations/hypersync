@@ -138,6 +138,67 @@ function Hero({ slides }) {
 }
 
 // ── SYNC STRIP — the positioning, said out loud ─────────────
+
+// ── PULSE STRIP: the page's heartbeat ─────────────────────────
+// News headlines drift left; artist avatars drift right.
+// Duplicated content = seamless loop. Hover pauses. Click navigates.
+function NewsTicker({ items }) {
+  if (!items.length) return null
+  const row = items.map((n, i) => (
+    <Link key={i} to="/feed" style={{
+      display: 'inline-flex', alignItems: 'center', gap: 10,
+      color: 'var(--dim)', fontSize: '0.78rem', fontWeight: 600, whiteSpace: 'nowrap',
+    }}>
+      {n.artist && <span style={{ color: 'var(--volt)', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', fontSize: '0.68rem' }}>{n.artist}</span>}
+      <span>{n.title}</span>
+      <span style={{ color: 'var(--faint)', margin: '0 8px' }}>◆</span>
+    </Link>
+  ))
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', borderBlock: '1px solid var(--line)', background: 'var(--panel)' }}>
+      <div style={{
+        flexShrink: 0, padding: '10px 16px', fontSize: '0.64rem', fontWeight: 800,
+        letterSpacing: '0.14em', color: '#14120A', background: 'var(--volt-grad)',
+      }}>LATEST</div>
+      <div className="marquee">
+        <div className="marquee__track">{row}{row}</div>
+      </div>
+    </div>
+  )
+}
+
+function ArtistMarquee({ artists }) {
+  if (!artists.length) return null
+  const row = artists.map((a, i) => (
+    <Link key={i} to={`/artists/${a.id}`} title={a.name} style={{
+      display: 'inline-flex', alignItems: 'center', gap: 10, whiteSpace: 'nowrap',
+      marginRight: 34,
+    }}>
+      {(a.portal_avatar || a.image) ? (
+        <img src={a.portal_avatar || a.image} alt={a.name} loading="lazy"
+          onError={e => { e.currentTarget.style.display = 'none' }}
+          style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--line)' }} />
+      ) : (
+        <span style={{
+          width: 34, height: 34, borderRadius: '50%', background: 'var(--volt-grad)',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          fontWeight: 800, fontSize: '0.7rem', color: '#14120A',
+        }}>{(a.name || '?').trim()[0]}</span>
+      )}
+      <span style={{ fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--dim)' }}>
+        {(a.name || '').trim()}
+      </span>
+    </Link>
+  ))
+  return (
+    <div style={{ borderBottom: '1px solid var(--line)', padding: '10px 0' }}>
+      <div className="marquee">
+        <div className="marquee__track marquee__track--reverse">{row}{row}</div>
+      </div>
+    </div>
+  )
+}
+
 function SyncStrip() {
   const ITEMS = [
     ['News', '/feed'], ['Socials', '/feed'], ['Schedule', '/schedule'],
@@ -254,12 +315,14 @@ export default function Home() {
       }
     })
     fetchData('schedule').then(rows => setEvents(rows.slice(0, 6))).catch(() => {})
-    fetchData('news').then(rows => setNews(rows.slice(0, 6))).catch(() => {})
+    fetchData('news').then(rows => setNews(rows.slice(0, 8))).catch(() => {})
   }, [])
 
   return (
     <div ref={rootRef}>
       <Hero slides={announcements.length ? announcements : [HERO_FALLBACK]} />
+      <NewsTicker items={news} />
+      <ArtistMarquee artists={artists} />
       <SyncStrip />
 
       {/* ARTISTS */}

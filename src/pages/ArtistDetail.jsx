@@ -93,7 +93,7 @@ export default function ArtistDetail() {
         setNews(all.filter(n => (n.artist || '').toLowerCase() === a.name.toLowerCase()).slice(0, 8))
       ).catch(() => {})
       fetchData('schedule').then(all =>
-        setEvents(all.filter(e => (e.artist_name || '').toLowerCase() === a.name.toLowerCase()))
+        setEvents(all.filter(e => (e.artist_name || '').trim().toLowerCase() === (a.name || '').trim().toLowerCase()))
       ).catch(() => {})
     }).catch(() => setNotFound(true))
   }, [id])

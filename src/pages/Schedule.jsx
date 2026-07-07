@@ -158,7 +158,7 @@ export default function Schedule() {
 
   const artistByName = useMemo(() => {
     const m = {}
-    artists.forEach(a => { m[(a.name || '').toLowerCase()] = a })
+    artists.forEach(a => { m[(a.name || '').trim().toLowerCase()] = a })
     return m
   }, [artists])
 
@@ -187,7 +187,7 @@ export default function Schedule() {
     }
     return Object.keys(nearest)
       .sort((a, b) => nearest[a].localeCompare(nearest[b]))
-      .map(name => ({ name, next: nearest[name], profile: artistByName[name.toLowerCase()] }))
+      .map(name => ({ name, next: nearest[name], profile: artistByName[name.trim().toLowerCase()] }))
   }, [events, artistByName])
 
   const countries = useMemo(() =>
@@ -452,7 +452,7 @@ export default function Schedule() {
       )}
       {selected && (
         <EventModal event={selected}
-          artist={artistByName[(selected.artist_name || '').toLowerCase()]}
+          artist={artistByName[(selected.artist_name || '').trim().toLowerCase()]}
           onClose={() => setSelected(null)} />
       )}
     </div>
