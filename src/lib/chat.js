@@ -46,3 +46,23 @@ export async function sendChat(body) {
   if (!res.ok) throw new Error(data.error || 'Message failed')
   return data
 }
+
+export async function getMyHandle() {
+  const res = await fetch('/api/handle', {
+    headers: { Authorization: `Bearer ${getSession()}` },
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || 'Failed')
+  return data.handle
+}
+
+export async function claimHandle(handle) {
+  const res = await fetch('/api/handle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getSession()}` },
+    body: JSON.stringify({ handle }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || 'Claim failed')
+  return data.handle
+}

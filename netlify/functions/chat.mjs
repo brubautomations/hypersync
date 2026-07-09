@@ -7,6 +7,7 @@
 // The rolling 200-message cap lives in the database trigger.
 // ============================================================
 import { getSessionFromRequest, json, err } from "./_shared.mjs";
+import { lookupHandle } from "./handle.mjs";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -36,6 +37,11 @@ export default async function handler(req) {
   if (linkRe.test(text)) return err("Links aren't allowed in chat");
   if (bannedRe.test(text)) return err("Keep it friendly");
 
+  // identity comes from the claimed handle — never from the client
+  let handle;
+  try { handle = await lookupHandle(user.email); } catch { return err("Chat temporarily unavailable", 502); }
+  if (!handle) return err("Pick a chat name first", 428);
+
   const H = {
     apikey: SERVICE_KEY,
     Authorization: "Bearer " + SERVICE_KEY,
@@ -59,8 +65,8 @@ export default async function handler(req) {
       headers: { ...H, Prefer: "return=minimal" },
       body: JSON.stringify({
         user_id: user.email,
-        display_name: (user.name || "fan").slice(0, 40),
-        avatar: user.avatar || "",
+        display_name: handle,
+        avatar: "",
         body: text,
       }),
     });

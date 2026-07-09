@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { chatEnabled, fetchRecentMessages, onNewMessage, sendChat } from '../lib/chat'
+import { chatEnabled, fetchRecentMessages, onNewMessage, sendChat, getMyHandle, claimHandle } from '../lib/chat'
 
 function timeShort(iso) {
   try {
@@ -16,6 +16,9 @@ export default function ChatDrawer() {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [unseen, setUnseen] = useState(0)
+  const [handle, setHandle] = useState(null)       // null = unknown, '' = none yet
+  const [handleDraft, setHandleDraft] = useState('')
+  const [claiming, setClaiming] = useState(false)
   const listRef = useRef(null)
   const openRef = useRef(false)
   openRef.current = open
@@ -40,6 +43,25 @@ export default function ChatDrawer() {
   }, [scrollDown])
 
   useEffect(() => { if (open) { setUnseen(0); scrollDown() } }, [open, scrollDown])
+
+  useEffect(() => {
+    if (!open || !user || handle !== null) return
+    getMyHandle().then(h => setHandle(h || '')).catch(() => setHandle(''))
+  }, [open, user, handle])
+
+  const doClaim = async e => {
+    e.preventDefault()
+    if (claiming) return
+    setClaiming(true); setError('')
+    try {
+      const h = await claimHandle(handleDraft.trim())
+      setHandle(h)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setClaiming(false)
+    }
+  }
 
   const submit = async e => {
     e.preventDefault()
@@ -152,7 +174,33 @@ export default function ChatDrawer() {
           {error && (
             <div style={{ fontSize: '0.7rem', color: '#FF7A7A', marginBottom: 8 }}>{error}</div>
           )}
-          {user ? (
+          {user && handle === '' ? (
+            <form onSubmit={doClaim}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.12em', color: 'var(--volt)', marginBottom: 6 }}>
+                PICK YOUR CHAT NAME
+              </div>
+              <div style={{ fontSize: '0.66rem', color: 'var(--faint)', marginBottom: 8 }}>
+                This is permanent — choose wisely. Letters, numbers, underscores.
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  value={handleDraft}
+                  onChange={e => setHandleDraft(e.target.value)}
+                  maxLength={20}
+                  placeholder="bts4eva"
+                  style={{
+                    flex: 1, minWidth: 0, padding: '10px 14px', borderRadius: 'var(--r-sm, 10px)',
+                    border: '1px solid var(--line)', background: 'var(--card)',
+                    color: 'var(--text)', fontSize: '0.84rem', fontFamily: 'inherit', outline: 'none',
+                  }}
+                />
+                <button type="submit" disabled={claiming || handleDraft.trim().length < 3}
+                  className="btn btn--volt" style={{ opacity: claiming || handleDraft.trim().length < 3 ? 0.5 : 1 }}>
+                  Claim
+                </button>
+              </div>
+            </form>
+          ) : user ? (
             <form onSubmit={submit} style={{ display: 'flex', gap: 8 }}>
               <input
                 value={draft}
