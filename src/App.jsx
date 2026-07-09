@@ -7,6 +7,7 @@ import Artists from './pages/Artists'
 import ArtistDetail from './pages/ArtistDetail'
 import Feed from './pages/Feed'
 import Schedule from './pages/Schedule'
+import ChatDrawer from './components/ChatDrawer'
 
 // Phase 2–4 pages land here. Placeholder keeps routes stable meanwhile.
 function ComingSoon({ label }) {
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="/shop" element={<ComingSoon label="Shop" />} />
             <Route path="*" element={<ComingSoon label="Page" />} />
           </Routes>
+          <ChatDrawer />
         </Router>
       </CreditProvider>
     </AuthProvider>
