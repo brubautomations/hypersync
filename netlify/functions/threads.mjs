@@ -48,18 +48,18 @@ export default async function handler(req) {
       const threadId = q.get("thread");
       if (threadId) {
         const t = await (await sb(`threads?id=eq.${encodeURIComponent(threadId)}&select=*&limit=1`)).json();
-        if (!t?.[0]) return err("Thread not found", 404);
+        if (!Array.isArray(t) || !t[0]) return err("Thread not found", 404);
         const replies = await (await sb(
           `thread_replies?thread_id=eq.${encodeURIComponent(threadId)}&select=id,handle,body,created_at&order=id.asc&limit=200`
         )).json();
-        return json({ thread: t[0], replies: replies || [] });
+        return json({ thread: t[0], replies: Array.isArray(replies) ? replies : [] });
       }
       const artist = q.get("artist");
       if (!artist) return err("Missing artist");
       const rows = await (await sb(
         `threads?artist_id=eq.${encodeURIComponent(artist)}&select=id,title,handle,reply_count,created_at&order=id.desc&limit=50`
       )).json();
-      return json({ threads: rows || [] });
+      return json({ threads: Array.isArray(rows) ? rows : [] });
     } catch {
       return err("Discussions temporarily unavailable", 502);
     }

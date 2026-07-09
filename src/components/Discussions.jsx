@@ -32,7 +32,9 @@ function ThreadView({ threadId, onBack }) {
   const [error, setError] = useState('')
 
   const load = useCallback(() => {
-    api(`/api/threads?thread=${threadId}`).then(setData).catch(() => {})
+    api(`/api/threads?thread=${threadId}`)
+      .then(d => setData({ thread: d.thread, replies: Array.isArray(d.replies) ? d.replies : [] }))
+      .catch(() => {})
   }, [threadId])
   useEffect(load, [load])
 
@@ -116,7 +118,7 @@ export default function Discussions({ artist }) {
   const [error, setError] = useState('')
 
   const load = useCallback(() => {
-    api(`/api/threads?artist=${artist.id}`).then(d => setThreads(d.threads)).catch(() => setThreads([]))
+    api(`/api/threads?artist=${artist.id}`).then(d => setThreads(Array.isArray(d.threads) ? d.threads : [])).catch(() => setThreads([]))
   }, [artist.id])
   useEffect(load, [load])
 
