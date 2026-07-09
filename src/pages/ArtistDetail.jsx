@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { fetchData } from '../lib/api'
 import PostCard from '../components/PostCard'
+import Discussions from '../components/Discussions'
 import { useReveal } from '../lib/useReveal'
 import { deriveTourKey } from '../lib/tours'
 import { DMModal } from '../components/modals'
@@ -258,6 +259,7 @@ export default function ArtistDetail() {
             </div>
           </section>
         )}
+        <Discussions artist={artist} />
       </div>
 
       {showDM && <DMModal artist={artist} onClose={() => setShowDM(false)} />}
