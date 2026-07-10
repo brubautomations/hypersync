@@ -21,6 +21,17 @@ const BANNED = [
 const bannedRe = new RegExp("\\b(" + BANNED.join("|").replace(/ /g, "\\s+") + ")\\b", "i");
 const linkRe = /(https?:\/\/|www\.)\S+/i;
 
+
+// ── the ban hammer: silenced everywhere, instantly ──
+async function isBanned(email) {
+  const res = await fetch(
+    SUPABASE_URL + "/rest/v1/banned_users?user_id=eq." + encodeURIComponent(email) + "&select=user_id&limit=1",
+    { headers: { apikey: SERVICE_KEY, Authorization: "Bearer " + SERVICE_KEY } }
+  );
+  const rows = await res.json().catch(() => []);
+  return Array.isArray(rows) && rows.length > 0;
+}
+
 export default async function handler(req) {
   if (req.method !== "POST") return err("Method not allowed", 405);
 
@@ -29,6 +40,7 @@ export default async function handler(req) {
 
   const user = getSessionFromRequest(req);
   if (!user) return err("Sign in to chat", 401);
+  try { if (await isBanned(user.email)) return err("You can't post right now", 403); } catch {}
 
   let body;
   try { body = await req.json(); } catch { return err("Bad request"); }

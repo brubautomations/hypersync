@@ -36,6 +36,17 @@ async function sb(path, opts = {}) {
   return res;
 }
 
+
+// ── the ban hammer: silenced everywhere, instantly ──
+async function isBanned(email) {
+  const res = await fetch(
+    SUPABASE_URL + "/rest/v1/banned_users?user_id=eq." + encodeURIComponent(email) + "&select=user_id&limit=1",
+    { headers: { apikey: SERVICE_KEY, Authorization: "Bearer " + SERVICE_KEY } }
+  );
+  const rows = await res.json().catch(() => []);
+  return Array.isArray(rows) && rows.length > 0;
+}
+
 export default async function handler(req) {
   if (!SUPABASE_URL || !SERVICE_KEY) return err("Discussions not configured", 503);
   if (process.env.THREADS_DISABLED === "true") return err("Discussions are taking a break", 503);
@@ -70,6 +81,7 @@ export default async function handler(req) {
   // ── WRITES (session + handle) ──
   const user = getSessionFromRequest(req);
   if (!user) return err("Sign in to post", 401);
+  try { if (await isBanned(user.email)) return err("You can't post right now", 403); } catch {}
 
   let handle;
   try { handle = await lookupHandle(user.email); } catch { return err("Temporarily unavailable", 502); }
