@@ -65,6 +65,12 @@ export default async function handler(req) {
         )).json();
         return json({ thread: t[0], replies: Array.isArray(replies) ? replies : [] });
       }
+      if (q.get("recent")) {
+        const rows = await (await sb(
+          "threads?select=id,title,handle,artist_id,artist_name,reply_count,created_at&order=id.desc&limit=8"
+        )).json();
+        return json({ threads: Array.isArray(rows) ? rows : [] });
+      }
       const artist = q.get("artist");
       if (!artist) return err("Missing artist");
       const rows = await (await sb(

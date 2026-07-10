@@ -291,6 +291,16 @@ function EventRow({ e }) {
 export default function Home() {
   const [announcements, setAnnouncements] = useState([])
   const [artists, setArtists] = useState([])
+  const [hotThreads, setHotThreads] = useState([])
+  // 6 artist cards on mobile, 5 on desktop
+  const [artistCount, setArtistCount] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches ? 6 : 5)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 720px)')
+    const onChange = e => setArtistCount(e.matches ? 6 : 5)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
   const [events, setEvents] = useState([])
   const [news, setNews] = useState([])
   const rootRef = useReveal()
@@ -316,6 +326,9 @@ export default function Home() {
     })
     fetchData('schedule').then(rows => setEvents(rows.slice(0, 6))).catch(() => {})
     fetchData('news').then(rows => setNews(rows.slice(0, 8))).catch(() => {})
+    fetch('/api/threads?recent=1').then(r => r.json())
+      .then(d => setHotThreads(Array.isArray(d.threads) ? d.threads.slice(0, 6) : []))
+      .catch(() => {})
   }, [])
 
   return (
@@ -333,7 +346,7 @@ export default function Home() {
         </div>
         {artists.length ? (
           <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(44vw, 180px), 1fr))' }}>
-            {artists.slice(0, 5).map(a => <ArtistCard key={a.id} a={a} />)}
+            {artists.slice(0, artistCount).map(a => <ArtistCard key={a.id} a={a} />)}
           </div>
         ) : (
           <div className="card" style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--dim)' }}>
@@ -360,6 +373,29 @@ export default function Home() {
       </section>
 
       {/* NEWS STRIP */}
+      {/* ── HOT THREADS ── */}
+      {hotThreads.length > 0 && (
+        <section className="section wrap">
+          <div className="section-head">
+            <h2 className="display" style={{ fontSize: 'clamp(1.6rem, 4vw, 2.4rem)' }}>HOT THREADS</h2>
+          </div>
+          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fill, minmax(min(88vw, 340px), 1fr))' }}>
+            {hotThreads.map(t => (
+              <Link key={t.id} to={`/artists/${t.artist_id}?thread=${t.id}`} className="card card--lift reveal"
+                style={{ display: 'block', padding: '14px 18px' }}>
+                <div style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--volt)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+                  {t.artist_name || 'Artist'}
+                </div>
+                <div style={{ fontWeight: 800, fontSize: '0.9rem', lineHeight: 1.35, marginBottom: 8, color: 'var(--text)' }}>{t.title}</div>
+                <div style={{ fontSize: '0.64rem', color: 'var(--faint)' }}>
+                  {t.handle} · {t.reply_count || 0} {(t.reply_count || 0) === 1 ? 'reply' : 'replies'}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {news.length > 0 && (
         <section className="section wrap" style={{ paddingTop: 0 }}>
           <div className="section-head">
@@ -400,6 +436,12 @@ export default function Home() {
           <p style={{ fontSize: '0.72rem', color: 'var(--faint)' }}>
             © {new Date().getFullYear()} HYPERSYNC
           </p>
+        </div>
+        <div style={{ textAlign: 'center', paddingBottom: 18 }}>
+          <a href="https://brubai.net/" target="_blank" rel="noopener noreferrer"
+            style={{ fontSize: '0.62rem', color: 'var(--faint)', letterSpacing: '0.08em' }}>
+            powered by BRUB AI
+          </a>
         </div>
       </footer>
     </div>

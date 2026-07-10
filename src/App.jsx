@@ -9,6 +9,7 @@ import Feed from './pages/Feed'
 import Schedule from './pages/Schedule'
 import ChatDrawer from './components/ChatDrawer'
 import ErrorBoundary from './components/ErrorBoundary'
+import SignInWall from './components/SignInWall'
 
 // Phase 2–4 pages land here. Placeholder keeps routes stable meanwhile.
 function ComingSoon({ label }) {
@@ -37,8 +38,8 @@ export default function App() {
             <Route path="/artists" element={<Artists />} />
             <Route path="/artists/:id" element={<ArtistDetail />} />
             <Route path="/feed" element={<Feed />} />
-            <Route path="/schedule" element={<Schedule />} />
-            <Route path="/shop" element={<ComingSoon label="Shop" />} />
+            <Route path="/schedule" element={<SignInWall label="The schedule"><Schedule /></SignInWall>} />
+            <Route path="/shop" element={<SignInWall label="The shop"><ComingSoon label="Shop" /></SignInWall>} />
             <Route path="*" element={<ComingSoon label="Page" />} />
           </Routes>
           </ErrorBoundary>

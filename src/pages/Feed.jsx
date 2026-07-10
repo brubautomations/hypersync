@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { fetchData } from '../lib/api'
 import { useReveal } from '../lib/useReveal'
 import PostCard from '../components/PostCard'
+import { useAuth } from '../context/AuthContext'
 
 function timeAgo(dateStr) {
   if (!dateStr) return ''
@@ -57,6 +58,7 @@ function FeedCard({ item }) {
 }
 
 export default function Feed() {
+  const { user } = useAuth()
   const [news, setNews] = useState([])
   const [posts, setPosts] = useState([])
   const [artistsByName, setArtistsByName] = useState({})
@@ -86,9 +88,9 @@ export default function Feed() {
         artist: n.artist, source: n.source, link: n.url,
         when: n.created_at || n.published,
       })),
-      ...posts.map(p => ({
+      ...(user ? posts.map(p => ({
         kind: 'post', id: `p-${p.id}`, when: p.created_at, artist: p.artist_name, post: p,
-      })),
+      })) : []),
     ]
     return mapped
       .filter(i => kind === 'All' || (kind === 'News' ? i.kind === 'news' : i.kind === 'post'))
@@ -98,7 +100,7 @@ export default function Feed() {
 
   const artists = useMemo(() =>
     ['All', ...new Set([...news.map(n => n.artist), ...posts.map(p => p.artist_name)].filter(Boolean).sort())],
-    [news, posts])
+    [news, posts, user])
 
   return (
     <div ref={rootRef} className="wrap section">

@@ -139,7 +139,18 @@ export default function ChatDrawer() {
           }}>✕</button>
         </div>
 
-        {/* messages — dense rows, KOTH energy */}
+        {/* messages — dense rows, KOTH energy (members only) */}
+        {!user ? (
+          <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 24 }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 800, letterSpacing: '0.14em', marginBottom: 8 }}>MEMBERS ONLY</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--faint)', marginBottom: 16 }}>Sign in to see the conversation.</div>
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <div ref={el => el && renderGoogleButton(el)} />
+              </div>
+            </div>
+          </div>
+        ) : (
         <div ref={listRef} style={{ flex: 1, overflowY: 'auto' }}>
           {messages.length === 0 && (
             <div style={{ color: 'var(--faint)', fontSize: '0.78rem', textAlign: 'center', marginTop: 36 }}>
@@ -168,6 +179,8 @@ export default function ChatDrawer() {
             </div>
           ))}
         </div>
+
+        )}
 
         {/* composer */}
         <div style={{ borderTop: '1px solid var(--line)', padding: '12px 14px' }}>

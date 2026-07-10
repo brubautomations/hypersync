@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { getSession } from '../lib/api'
 
@@ -110,7 +111,8 @@ function ThreadView({ threadId, onBack }) {
 export default function Discussions({ artist }) {
   const { user } = useAuth()
   const [threads, setThreads] = useState(null)
-  const [openThread, setOpenThread] = useState(null)
+  const [params] = useSearchParams()
+  const [openThread, setOpenThread] = useState(() => params.get('thread') || null)
   const [composing, setComposing] = useState(false)
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
