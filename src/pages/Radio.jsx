@@ -118,6 +118,9 @@ export default function Radio() {
   const [, setTick] = useState(0);
   const [vol, setVol] = useState(0.85);
   const [listOpen, setListOpen] = useState(false);
+  const [empty, setEmpty] = useState(false);
+  const [pool, setPool] = useState(0);
+  const [audioErr, setAudioErr] = useState("");
 
   const deck = useRef([]);
   const active = useRef(0);
@@ -176,6 +179,7 @@ export default function Radio() {
 
     const rnd = mulberry32(seed(`${t.toISOString().slice(0, 10)}|${blk.show.id}`));
     const pool = lib.songs.filter((s) => s.shows.includes(blk.show.id));
+    setPool(pool.length);
     if (!pool.length) return { items: [], blk, empty: true };
 
     const showDrops = lib.drops.filter((d) => !d.shows.length || d.shows.includes(blk.show.id));
@@ -251,7 +255,10 @@ export default function Radio() {
     cur.src = it.url;
     cur.volume = vol;
     cur.currentTime = Math.max(0, Math.min(offset || 0, Math.max(0, it.dur - 1)));
-    cur.play().catch(() => {});
+    setAudioErr("");
+    cur.onerror = () =>
+      setAudioErr("That file wouldn't load: " + decodeURIComponent(it.url.split("/").pop()));
+    cur.play().catch((e) => setAudioErr("Playback blocked: " + (e?.message || e)));
     nxt.pause();
     setNowItem(it);
 
@@ -299,9 +306,10 @@ export default function Radio() {
 
   const resync = useCallback(async () => {
     const t = nowManila();
-    const { items, blk } = await build(t);
+    const { items, blk, empty: none } = await build(t);
     line.current = items;
     setBlock(blk);
+    setEmpty(!!none);
     if (!live) return;
     const spot = locate(t, items, blk);
     if (spot) playIndex(spot.i, spot.off);
@@ -317,9 +325,10 @@ export default function Radio() {
     if (!lib) return;
     (async () => {
       const t = nowManila();
-      const { items, blk } = await build(t);
+      const { items, blk, empty: none } = await build(t);
       line.current = items;
       setBlock(blk);
+      setEmpty(!!none);
     })();
   }, [lib, build]);
 
@@ -338,9 +347,10 @@ export default function Radio() {
     }
     setLive(true);
     const t = nowManila();
-    const { items, blk } = await build(t);
+    const { items, blk, empty: none } = await build(t);
     line.current = items;
     setBlock(blk);
+    setEmpty(!!none);
     const spot = locate(t, items, blk);
     if (spot) playIndex(spot.i, spot.off);
     else timer.current = setTimeout(resync, 5000);
@@ -401,8 +411,16 @@ export default function Radio() {
         <div className="rw-veil" />
 
         <div className="rw-meta">
-          <h1 className="rw-title">{nowItem ? nowItem.title : "Ready when you are"}</h1>
-          <div className="rw-by">{(nowItem?.artist || "").toUpperCase()}</div>
+          <h1 className="rw-title">
+            {nowItem ? nowItem.title
+              : empty ? "No songs tagged for this show"
+              : "Ready when you are"}
+          </h1>
+          <div className="rw-by">
+            {nowItem ? (nowItem.artist || "").toUpperCase()
+              : empty ? "OPEN SONGS IN AIRTABLE AND FILL THE SHOWS COLUMN"
+              : ""}
+          </div>
         </div>
       </div>
 
@@ -420,6 +438,11 @@ export default function Radio() {
       </div>
 
       {err && <div className="rw-err">{err}</div>}
+      {audioErr && <div className="rw-err">{audioErr}</div>}
+
+      <div className="rw-diag">
+        {lib ? `${lib.songs.length} songs loaded · ${pool} in this show · ${lib.drops.length} drops · ${lib.ads.length} ads` : "loading…"}
+      </div>
 
       {listOpen && (
         <div className="rw-sched">
@@ -452,7 +475,8 @@ const CSS = `
 
 /* ---- show art band ---- */
 .rw-head{position:relative;background:#101017;border-bottom:1px solid #2A2A38;flex-shrink:0}
-.rw-art{display:block;width:100%;height:auto;max-height:132px;object-fit:cover}
+.rw-art{display:block;width:100%;height:132px;object-fit:contain;object-position:center;
+  background:#0C0C11}
 .rw-art--none{display:grid;place-items:center;height:96px;background:#15151D}
 .rw-art--none img{height:38px;width:auto}
 
@@ -530,5 +554,7 @@ const CSS = `
 
 .rw-err{padding:13px 14px;color:#FF3B5C;font-size:12px;line-height:1.55;
   border-top:1px solid #2A2A38}
+.rw-diag{padding:8px 14px;color:#5C5C70;font-size:10px;font-weight:700;
+  letter-spacing:.08em;border-top:1px solid #2A2A38;flex-shrink:0}
 @media (prefers-reduced-motion:reduce){.rw-dot,.rw-fallback span{animation:none}}
 `;

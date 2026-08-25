@@ -114,8 +114,8 @@ export default async (req) => {
       { shows, songs, drops, ads, at: Date.now() },
       {
         headers: {
-          // browsers may reuse this for 5 min; the station itself is clock-driven
-          "Cache-Control": "public, max-age=300",
+          // never cache: the library changes in Airtable while the station runs
+          "Cache-Control": "no-store, max-age=0",
         },
       }
     );

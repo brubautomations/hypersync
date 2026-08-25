@@ -84,29 +84,28 @@ export default function Navbar() {
 
           {/* radio — sits left of the nav links, as in the mock */}
           <button
-            className="chip chip--volt-line radio-chip"
+            className="radio-chip"
             onClick={openRadio}
-            title="HYPERSYNC Radio"
+            title="HYPERSYNC Radio — live 24/7"
             aria-label="Open HYPERSYNC Radio"
-            style={{
-              flexShrink: 0, display: 'flex', alignItems: 'center', gap: 9,
-              cursor: 'pointer', padding: '7px 16px',
-            }}
           >
-            <span className="radio-dot" />
             <img
+              className="radio-logo"
               src="/radio-logo.png"
               alt="HYPERSYNC RADIO"
-              style={{ height: 28, width: 'auto', display: 'block' }}
               onError={e => {
                 e.currentTarget.replaceWith(
                   Object.assign(document.createElement('span'), {
-                    textContent: 'RADIO',
-                    style: 'font-weight:800;letter-spacing:.06em',
+                    textContent: 'HYPERSYNC RADIO',
+                    style: 'font-weight:900;letter-spacing:.06em;font-size:.8rem',
                   })
                 )
               }}
             />
+            <span className="radio-live">
+              <i className="radio-dot" />
+              LIVE 24/7
+            </span>
           </button>
 
           {/* desktop links */}
@@ -180,16 +179,13 @@ export default function Navbar() {
         {menuOpen && (
           <div style={{ borderTop: '1px solid var(--line)', padding: '10px 18px 16px', display: 'grid', gap: 6 }}>
             <button
-              className="chip chip--volt-line"
+              className="radio-chip radio-chip--mobile"
               onClick={() => { setMenuOpen(false); openRadio() }}
-              style={{
-                justifyContent: 'center', padding: '12px 14px', fontSize: '0.8rem',
-                display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer',
-                fontWeight: 800, letterSpacing: '.06em',
-              }}
+              aria-label="Open HYPERSYNC Radio"
             >
-              <span className="radio-dot" />
-              RADIO
+              <img className="radio-logo" src="/radio-logo.png" alt="HYPERSYNC RADIO"
+                   onError={e => { e.currentTarget.style.display = 'none' }} />
+              <span className="radio-live"><i className="radio-dot" />LIVE 24/7</span>
             </button>
             {LINKS.map(l => {
               const active = location.pathname === l.path
@@ -208,18 +204,51 @@ export default function Navbar() {
         @media (max-width: 820px) {
           .nav-links { display: none !important; }
           .nav-burger { display: flex !important; }
-          .radio-chip { display: none !important; }
+          .radio-chip:not(.radio-chip--mobile) { display: none !important; }
+        }
+        .radio-chip {
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          background: none;
+          border: 0;
+          padding: 0 4px;
+          cursor: pointer;
+        }
+        .radio-chip--mobile {
+          justify-content: center;
+          padding: 12px 14px;
+          border: 1px solid var(--line);
+          border-radius: 999px;
+          width: 100%;
+        }
+        .radio-logo {
+          height: 44px;
+          width: auto;
+          display: block;
+        }
+        .radio-chip:hover .radio-logo { filter: brightness(1.12); }
+        .radio-live {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 0.6rem;
+          font-weight: 900;
+          letter-spacing: .13em;
+          color: #FF3B5C;
+          white-space: nowrap;
         }
         .radio-dot {
           width: 7px; height: 7px; border-radius: 50%;
-          background: var(--volt, #FFD60A);
-          box-shadow: 0 0 0 0 rgba(255, 214, 10, .6);
-          animation: radioPulse 2.4s infinite;
+          background: #FF3B5C;
+          box-shadow: 0 0 0 0 rgba(255, 59, 92, .65);
+          animation: radioPulse 1.6s infinite;
           flex-shrink: 0;
         }
         @keyframes radioPulse {
-          70%  { box-shadow: 0 0 0 7px rgba(255, 214, 10, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(255, 214, 10, 0); }
+          70%  { box-shadow: 0 0 0 8px rgba(255, 59, 92, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(255, 59, 92, 0); }
         }
         @media (prefers-reduced-motion: reduce) {
           .radio-dot { animation: none; }
