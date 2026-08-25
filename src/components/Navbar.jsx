@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useCredits } from '../context/CreditContext'
+import HypersyncRadio from './HypersyncRadio'
 
 const LINKS = [
   { label: 'Home', path: '/' },
@@ -45,6 +46,7 @@ export default function Navbar() {
   const [showSignIn, setShowSignIn] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenu, setUserMenu] = useState(false)
+  const [radioOpen, setRadioOpen] = useState(false)
 
   useEffect(() => { setMenuOpen(false); setUserMenu(false) }, [location.pathname])
 
@@ -62,6 +64,20 @@ export default function Navbar() {
           <Link to="/" style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
             <img src="/logo.png" alt="HYPERSYNC" style={{ height: 48 }} />
           </Link>
+
+          {/* radio — sits left of the nav links, as in the mock */}
+          <button
+            className="chip chip--volt-line radio-chip"
+            onClick={() => setRadioOpen(true)}
+            title="HYPERSYNC Radio"
+            style={{
+              flexShrink: 0, display: 'flex', alignItems: 'center', gap: 7,
+              cursor: 'pointer', letterSpacing: '.06em', fontWeight: 800,
+            }}
+          >
+            <span className="radio-dot" />
+            RADIO
+          </button>
 
           {/* desktop links */}
           <div className="nav-links" style={{ display: 'flex', gap: 4 }}>
@@ -133,6 +149,18 @@ export default function Navbar() {
 
         {menuOpen && (
           <div style={{ borderTop: '1px solid var(--line)', padding: '10px 18px 16px', display: 'grid', gap: 6 }}>
+            <button
+              className="chip chip--volt-line"
+              onClick={() => { setMenuOpen(false); setRadioOpen(true) }}
+              style={{
+                justifyContent: 'center', padding: '12px 14px', fontSize: '0.8rem',
+                display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer',
+                fontWeight: 800, letterSpacing: '.06em',
+              }}
+            >
+              <span className="radio-dot" />
+              RADIO
+            </button>
             {LINKS.map(l => {
               const active = location.pathname === l.path
               return (
@@ -150,10 +178,28 @@ export default function Navbar() {
         @media (max-width: 820px) {
           .nav-links { display: none !important; }
           .nav-burger { display: flex !important; }
+          .radio-chip { display: none !important; }
+        }
+        .radio-dot {
+          width: 7px; height: 7px; border-radius: 50%;
+          background: var(--volt, #FFD60A);
+          box-shadow: 0 0 0 0 rgba(255, 214, 10, .6);
+          animation: radioPulse 2.4s infinite;
+          flex-shrink: 0;
+        }
+        @keyframes radioPulse {
+          70%  { box-shadow: 0 0 0 7px rgba(255, 214, 10, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(255, 214, 10, 0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .radio-dot { animation: none; }
         }
       `}</style>
 
       {showSignIn && !isSignedIn && <SignInModal onClose={() => setShowSignIn(false)} />}
+
+      {/* mounted here so audio keeps playing as you move between pages */}
+      <HypersyncRadio open={radioOpen} onClose={() => setRadioOpen(false)} />
     </>
   )
 }
