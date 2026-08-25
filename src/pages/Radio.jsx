@@ -93,20 +93,39 @@ function shuffled(arr, rnd) {
   return a;
 }
 
-/* ---------- duration probing ---------- */
+/* ---------- duration probing ----------
+   Every listener has to arrive at the SAME number for every track,
+   or their timelines drift apart and they hear different songs.
+   So: whole seconds only, no timing-dependent fallbacks. A track
+   whose length can't be established is dropped from rotation for
+   everyone rather than guessed at. */
 const durCache = new Map();
-function probe(url) {
-  if (durCache.has(url)) return Promise.resolve(durCache.get(url));
+
+function readDuration(url, ms) {
   return new Promise((res) => {
     const a = new Audio();
     a.preload = "metadata";
     let settled = false;
-    const done = (v) => { if (settled) return; settled = true; durCache.set(url, v); res(v); };
-    a.onloadedmetadata = () => done(isFinite(a.duration) && a.duration > 1 ? a.duration : 210);
-    a.onerror = () => done(210);
-    setTimeout(() => done(210), 12000);
+    const done = (v) => {
+      if (settled) return;
+      settled = true;
+      a.src = "";
+      res(v);
+    };
+    a.onloadedmetadata = () =>
+      done(isFinite(a.duration) && a.duration > 1 ? Math.round(a.duration) : 0);
+    a.onerror = () => done(0);
+    setTimeout(() => done(0), ms);
     a.src = url;
   });
+}
+
+async function probe(url) {
+  if (durCache.has(url)) return durCache.get(url);
+  let d = await readDuration(url, 45000);
+  if (!d) d = await readDuration(url, 45000);   // one retry on a cold cache
+  durCache.set(url, d);                          // 0 means "unusable"
+  return d;
 }
 
 export default function Radio() {
@@ -121,6 +140,7 @@ export default function Radio() {
   const [empty, setEmpty] = useState(false);
   const [pool, setPool] = useState(0);
   const [audioErr, setAudioErr] = useState("");
+  const [badCount, setBadCount] = useState(0);
 
   const deck = useRef([]);
   const active = useRef(0);
@@ -190,13 +210,15 @@ export default function Radio() {
     const adQ = shuffled(lib.ads, rnd);
 
     await Promise.all([...new Set([...songQ, ...dropQ, ...adQ].map((x) => x.url))].map(probe));
+    setBadCount(songQ.filter((s) => !durCache.get(s.url)).length);
 
     const startSec = blk.start * 60, endSec = blk.end * 60;
     let at = startSec, si = 0, di = 0, ai = 0;
     const items = [];
 
     const put = (o, xfade) => {
-      const dur = durCache.get(o.url) || 210;
+      const dur = durCache.get(o.url) || 0;
+      if (!dur) return true;              // unreadable file — skipped for everyone
       if (at + dur > endSec) return false;
       items.push({ ...o, at, dur });
       at += dur - (xfade || 0);
@@ -441,7 +463,7 @@ export default function Radio() {
       {audioErr && <div className="rw-err">{audioErr}</div>}
 
       <div className="rw-diag">
-        {lib ? `${lib.songs.length} songs loaded · ${pool} in this show · ${lib.drops.length} drops · ${lib.ads.length} ads` : "loading…"}
+        {lib ? `${lib.songs.length} songs loaded · ${pool} in this show · ${lib.drops.length} drops · ${lib.ads.length} ads${badCount ? ` · ${badCount} unreadable` : ""}` : "loading…"}
       </div>
 
       {listOpen && (
