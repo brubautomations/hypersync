@@ -1,22 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 /* ============================================================
-   HYPERSYNC RADIO
-   Clock-driven station. Every listener computes the same running
-   order from the date, so everyone hears the same second of the
-   same song. Joining mid-song seeks to the right position.
+   HYPERSYNC RADIO — floating, draggable player
 
-   Usage:
-     const [radioOpen, setRadioOpen] = useState(false);
-     <button onClick={() => setRadioOpen(true)}>HYPERSYNC RADIO</button>
+   Not a modal. It sits on top of the site and the site stays
+   fully usable underneath. Drag it by the header, minimise it
+   to a slim bar, or close it. Audio keeps playing wherever the
+   listener navigates.
+
+   Usage (mount once, in Navbar or App — never inside a page):
      <HypersyncRadio open={radioOpen} onClose={() => setRadioOpen(false)} />
 
-   Mount it once, high in the tree (App level), so audio survives
-   navigation between pages.
+   Logo: drop your file at  public/radio-logo.png
    ============================================================ */
 
 const CFG = {
   API: "/api/station",
+  LOGO: "/radio-logo.png",
   TZ: 8,                    // Manila, no DST
 
   SONGS_MIN: 4,             // songs between breaks
@@ -30,8 +30,8 @@ const CFG = {
   P_STATION: 0.5,
   P_INTRO: 0.6,
 
-  XFADE: 2.0,               // song→song crossfade, seconds
-  XFADE_VOICE: 0.6,         // voice→song overlap
+  XFADE: 2.0,               // song → song crossfade, seconds
+  XFADE_VOICE: 0.6,         // voice → song overlap
   DUCK: 0.28,               // music level under the voice
   REFRESH_MIN: 30,          // re-pull the library every N minutes
 };
@@ -80,7 +80,7 @@ function shuffled(arr, rnd) {
   return a;
 }
 
-/* ---------- duration probing (no Duration column needed) ---------- */
+/* ---------- duration probing ---------- */
 const durCache = new Map();
 function probe(url) {
   if (durCache.has(url)) return Promise.resolve(durCache.get(url));
@@ -108,14 +108,28 @@ export default function HypersyncRadio({ open = false, onClose = () => {} }) {
   const [live, setLive] = useState(false);
   const [block, setBlock] = useState(null);
   const [nowItem, setNowItem] = useState(null);
-  const [tick, setTick] = useState(0);
+  const [, setTick] = useState(0);
   const [vol, setVol] = useState(0.85);
+  const [mini, setMini] = useState(false);
+  const [showList, setShowList] = useState(false);
+  const [pos, setPos] = useState(null);
+  const [narrow, setNarrow] = useState(false);
 
   const deck = useRef([]);
   const active = useRef(0);
   const line = useRef([]);
   const cursor = useRef(-1);
   const timer = useRef(null);
+  const panel = useRef(null);
+  const drag = useRef(null);
+
+  /* ---------- viewport ---------- */
+  useEffect(() => {
+    const check = () => setNarrow(window.innerWidth < 720);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   /* ---------- audio decks ---------- */
   useEffect(() => {
@@ -133,13 +147,13 @@ export default function HypersyncRadio({ open = false, onClose = () => {} }) {
     deck.current.forEach((a) => { if (a) a.volume = vol; });
   }, [vol]);
 
-  /* ---------- load library ---------- */
+  /* ---------- library ---------- */
   const load = useCallback(async () => {
     try {
       const r = await fetch(CFG.API);
       const j = await r.json();
       if (j.error) throw new Error(j.error);
-      if (!j.shows?.length) throw new Error("No shows found. Add rows to the SHOWS table.");
+      if (!j.shows?.length) throw new Error("No shows found in the SHOWS table.");
       j.shows.sort((a, b) => toMin(a.start) - toMin(b.start));
       setLib(j);
       setErr("");
@@ -167,10 +181,10 @@ export default function HypersyncRadio({ open = false, onClose = () => {} }) {
         return { show: s, start: a, end: b, wrap: false };
       }
     }
-    return null; // station break between blocks
+    return null;
   }, [lib]);
 
-  /* ---------- build the running order ---------- */
+  /* ---------- running order ---------- */
   const build = useCallback(async (t) => {
     const blk = findBlock(t);
     if (!blk || !lib) return { items: [], blk };
@@ -206,7 +220,6 @@ export default function HypersyncRadio({ open = false, onClose = () => {} }) {
       at += dur - (xfade || 0);
       return true;
     };
-
     const roll = (p) => rnd() < p;
     const nextDrop = () => (dropQ.length ? dropQ[di++ % dropQ.length] : null);
 
@@ -219,7 +232,6 @@ export default function HypersyncRadio({ open = false, onClose = () => {} }) {
           break outer;
       }
 
-      // ---- break ----
       let spoke = false;
       const voiceLine = (p) => {
         if (!roll(p)) return;
@@ -249,7 +261,6 @@ export default function HypersyncRadio({ open = false, onClose = () => {} }) {
     return { items, blk };
   }, [lib, findBlock]);
 
-  /* ---------- locate current position ---------- */
   const locate = useCallback((t, items, blk) => {
     let sec = t.getHours() * 3600 + t.getMinutes() * 60 + t.getSeconds();
     if (blk?.wrap) sec += 86400;
@@ -282,13 +293,12 @@ export default function HypersyncRadio({ open = false, onClose = () => {} }) {
     clearTimeout(timer.current);
     const nextIt = items[i + 1];
     if (nextIt) {
-      const overlap = nextIt.kind === "voice" || it.kind === "voice"
-        ? CFG.XFADE_VOICE
-        : CFG.XFADE;
-      const waitMs = Math.max(200, (it.dur - cur.currentTime - overlap) * 1000);
-      timer.current = setTimeout(() => handoff(i + 1, overlap), waitMs);
+      const ov = nextIt.kind === "voice" || it.kind === "voice" ? CFG.XFADE_VOICE : CFG.XFADE;
+      timer.current = setTimeout(() => handoff(i + 1, ov),
+        Math.max(200, (it.dur - cur.currentTime - ov) * 1000));
     } else {
-      timer.current = setTimeout(() => resync(), Math.max(500, (it.dur - cur.currentTime) * 1000));
+      timer.current = setTimeout(() => resync(),
+        Math.max(500, (it.dur - cur.currentTime) * 1000));
     }
   }, [vol]);
 
@@ -306,12 +316,10 @@ export default function HypersyncRadio({ open = false, onClose = () => {} }) {
     inc.play().catch(() => {});
 
     const steps = 20;
-    const stepMs = (overlap * 1000) / steps;
     let s = 0;
     const fade = setInterval(() => {
       s++;
       const k = s / steps;
-      // voice sits on top; music ducks under it rather than fading out
       out.volume = it.kind === "voice" ? vol * (1 - k * (1 - CFG.DUCK)) : vol * (1 - k);
       if (it.kind !== "voice") inc.volume = vol * k;
       if (s >= steps) {
@@ -319,7 +327,7 @@ export default function HypersyncRadio({ open = false, onClose = () => {} }) {
         out.pause();
         inc.volume = vol;
       }
-    }, stepMs);
+    }, (overlap * 1000) / steps);
 
     active.current = 1 - active.current;
     cursor.current = i;
@@ -344,7 +352,6 @@ export default function HypersyncRadio({ open = false, onClose = () => {} }) {
     const spot = locate(t, items, blk);
     if (spot) playIndex(spot.i, spot.off);
     else {
-      // in the station break between blocks
       setNowItem({ kind: "break", title: "Station break", artist: "" });
       deck.current.forEach((a) => a.pause());
       clearTimeout(timer.current);
@@ -352,7 +359,6 @@ export default function HypersyncRadio({ open = false, onClose = () => {} }) {
     }
   }, [build, locate, live, playIndex]);
 
-  /* keep the schedule panel current even when off air */
   useEffect(() => {
     if (!lib) return;
     (async () => {
@@ -388,140 +394,242 @@ export default function HypersyncRadio({ open = false, onClose = () => {} }) {
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
+  /* ---------- dragging ---------- */
+  const onGrab = (e) => {
+    if (narrow) return;
+    const box = panel.current.getBoundingClientRect();
+    drag.current = { dx: e.clientX - box.left, dy: e.clientY - box.top };
+    setPos({ x: box.left, y: box.top });
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onMove = (e) => {
+    if (!drag.current) return;
+    const w = panel.current.offsetWidth, h = panel.current.offsetHeight;
+    setPos({
+      x: Math.max(6, Math.min(window.innerWidth - w - 6, e.clientX - drag.current.dx)),
+      y: Math.max(6, Math.min(window.innerHeight - h - 6, e.clientY - drag.current.dy)),
+    });
+  };
+  const onDrop = () => { drag.current = null; };
+
   if (!open) return null;
 
   const t = nowManila();
   const shows = lib?.shows || [];
+  const art = block?.show?.art || "";
+  const onAir = live && nowItem && nowItem.kind !== "break";
+
+  const placement = narrow
+    ? { left: 8, right: 8, bottom: 8 }
+    : pos
+      ? { left: pos.x, top: pos.y }
+      : { right: 22, bottom: 22 };
 
   return (
-    <div className="hsr-overlay" onClick={onClose}>
-      <div className="hsr" onClick={(e) => e.stopPropagation()}>
-        <style>{CSS}</style>
+    <div className="hsr-panel" ref={panel} style={placement}>
+      <style>{CSS}</style>
 
-        <div className="hsr-top">
-          <div className="hsr-brand">
-            <span className="hsr-mark">H</span>
-            HYPERSYNC<em>RADIO</em>
-          </div>
-          <button className="hsr-x" onClick={onClose} aria-label="Close">×</button>
+      <div
+        className={narrow ? "hsr-head" : "hsr-head hsr-grab"}
+        onPointerDown={onGrab}
+        onPointerMove={onMove}
+        onPointerUp={onDrop}
+        onPointerCancel={onDrop}
+      >
+        <img
+          className="hsr-logo"
+          src={CFG.LOGO}
+          alt="HYPERSYNC RADIO"
+          onError={(e) => { e.currentTarget.style.display = "none"; }}
+        />
+        <span className="hsr-wordmark">HYPERSYNC<em>RADIO</em></span>
+
+        <div className="hsr-tools">
+          <button onClick={() => setMini((m) => !m)} title={mini ? "Expand" : "Minimise"}>
+            {mini ? "\u25A2" : "\u2014"}
+          </button>
+          <button onClick={onClose} title="Close">×</button>
         </div>
+      </div>
 
-        {err ? (
-          <div className="hsr-err">{err}</div>
-        ) : !lib ? (
-          <div className="hsr-note">Connecting to the station…</div>
-        ) : (
-          <>
-            <div className="hsr-deck">
-              <div className="hsr-state">
-                <i className={live ? "hsr-dot" : "hsr-dot off"} />
-                <b>
-                  {!live ? "OFF AIR"
-                    : nowItem?.kind === "ad" ? "AD BREAK"
-                    : nowItem?.kind === "voice" ? "ON AIR"
-                    : nowItem?.kind === "break" ? "STATION BREAK"
-                    : "ON AIR"}
-                </b>
-                <span>{block ? `· ${block.show.name.toUpperCase()}` : "· BETWEEN SHOWS"}</span>
-                <span className="hsr-clock">{clock(t)}</span>
+      {err ? (
+        <div className="hsr-msg hsr-err">{err}</div>
+      ) : !lib ? (
+        <div className="hsr-msg">Connecting to the station…</div>
+      ) : mini ? (
+        <div className="hsr-mini">
+          <div className="hsr-mini-art">
+            {art ? <img src={art} alt="" /> : <span>{(block?.show?.name || "H")[0]}</span>}
+            {onAir && <i className="hsr-eq"><b /><b /><b /></i>}
+          </div>
+          <div className="hsr-mini-txt">
+            <div className="hsr-mini-title">{nowItem ? nowItem.title : "Off air"}</div>
+            <div className="hsr-mini-artist">
+              {(nowItem?.artist || block?.show?.name || "").toUpperCase()}
+            </div>
+          </div>
+          <button className="hsr-play" onClick={toggle}>{live ? "❚❚" : "▶"}</button>
+        </div>
+      ) : (
+        <>
+          <div className="hsr-cover">
+            {art
+              ? <img src={art} alt={block?.show?.name || ""} />
+              : <div className="hsr-cover-fallback">
+                  <span>{(block?.show?.name || "HYPERSYNC")[0]}</span>
+                </div>}
+            <div className="hsr-scrim" />
+
+            <div className="hsr-badge">
+              <i className={onAir ? "hsr-dot" : "hsr-dot off"} />
+              {!live ? "OFF AIR"
+                : nowItem?.kind === "ad" ? "AD BREAK"
+                : nowItem?.kind === "break" ? "STATION BREAK"
+                : "ON AIR"}
+              <span className="hsr-time">{clock(t)}</span>
+            </div>
+
+            <div className="hsr-cover-txt">
+              <div className="hsr-show">
+                {block ? block.show.name.toUpperCase() : "BETWEEN SHOWS"}
               </div>
-
               <div className="hsr-title">
                 {nowItem ? nowItem.title : "Ready when you are"}
               </div>
-              <div className="hsr-artist">
-                {(nowItem?.artist || "").toUpperCase()}
-              </div>
-
-              <div className="hsr-row">
-                <button className="hsr-btn" onClick={toggle}>
-                  {live ? "STOP" : "TUNE IN"}
-                </button>
-                <label className="hsr-vol">
-                  VOL
-                  <input
-                    type="range" min="0" max="100"
-                    value={Math.round(vol * 100)}
-                    onChange={(e) => setVol(e.target.value / 100)}
-                  />
-                </label>
-              </div>
+              <div className="hsr-artist">{(nowItem?.artist || "").toUpperCase()}</div>
             </div>
+          </div>
 
+          <div className="hsr-bar">
+            <button className="hsr-btn" onClick={toggle}>{live ? "STOP" : "TUNE IN"}</button>
+            <input
+              className="hsr-vol" type="range" min="0" max="100"
+              value={Math.round(vol * 100)}
+              onChange={(e) => setVol(e.target.value / 100)}
+              aria-label="Volume"
+            />
+            <button className="hsr-link" onClick={() => setShowList((v) => !v)}>
+              {showList ? "HIDE" : "SCHEDULE"}
+            </button>
+          </div>
+
+          {showList && (
             <div className="hsr-sched">
-              <h4>SCHEDULE</h4>
               {shows.map((s) => {
                 const on = block && block.show.id === s.id;
                 return (
-                  <div key={s.id} className={on ? "hsr-item on" : "hsr-item"}>
-                    <span className="hsr-t">
-                      {label(toMin(s.start))} – {label(toMin(s.end))}
-                    </span>
-                    <span className="hsr-n">{s.name.toUpperCase()}</span>
-                    <span className="hsr-d">
-                      {on ? <em className="hsr-live">ON AIR</em> : s.desc}
-                    </span>
+                  <div key={s.id} className={on ? "hsr-row on" : "hsr-row"}>
+                    <div className="hsr-thumb">
+                      {s.art ? <img src={s.art} alt="" /> : <span>{s.name[0]}</span>}
+                    </div>
+                    <div className="hsr-rowtxt">
+                      <div className="hsr-rowname">{s.name.toUpperCase()}</div>
+                      <div className="hsr-rowtime">
+                        {label(toMin(s.start))} – {label(toMin(s.end))}
+                      </div>
+                    </div>
+                    {on && <em className="hsr-live">ON AIR</em>}
                   </div>
                 );
               })}
             </div>
-          </>
-        )}
-      </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
 
 const CSS = `
-.hsr-overlay{position:fixed;inset:0;background:rgba(4,4,8,.82);backdrop-filter:blur(6px);
-  display:grid;place-items:center;z-index:9999;padding:20px}
-.hsr{width:min(720px,100%);max-height:88vh;overflow:auto;background:#0C0C11;
-  border:1px solid #2A2A38;border-radius:20px;padding:22px;
+.hsr-panel{position:fixed;z-index:900;width:min(360px,calc(100vw - 16px));
+  background:#0C0C11;border:1px solid var(--line,#2A2A38);border-radius:18px;
+  box-shadow:0 24px 60px rgba(0,0,0,.6);overflow:hidden;
   font-family:Inter,'Helvetica Neue',Arial,sans-serif;color:#fff}
-.hsr-top{display:flex;align-items:center;margin-bottom:18px}
-.hsr-brand{font-weight:900;font-size:17px;letter-spacing:.07em;display:flex;align-items:center;gap:10px}
-.hsr-brand em{color:#FFD60A;font-style:normal;margin-left:5px}
-.hsr-mark{width:30px;height:30px;border-radius:8px;background:#FFD60A;color:#000;
-  display:grid;place-items:center;font-size:15px}
-.hsr-x{margin-left:auto;background:none;border:0;color:#8B8B9E;font-size:26px;cursor:pointer;line-height:1}
-.hsr-x:hover{color:#fff}
 
-.hsr-deck{background:linear-gradient(160deg,#15151D,#1C1C26);border:1px solid #2A2A38;
-  border-radius:16px;padding:24px;margin-bottom:14px}
-.hsr-state{display:flex;align-items:center;gap:9px;margin-bottom:18px;
-  font-size:11px;letter-spacing:.15em;font-weight:800}
-.hsr-state span{color:#8B8B9E;letter-spacing:.11em;font-weight:700}
-.hsr-dot{width:8px;height:8px;border-radius:50%;background:#FF3B5C;
+.hsr-head{display:flex;align-items:center;gap:9px;padding:11px 13px;
+  border-bottom:1px solid var(--line,#2A2A38);background:#101017;user-select:none}
+.hsr-grab{cursor:grab}
+.hsr-grab:active{cursor:grabbing}
+.hsr-logo{height:22px;width:auto;display:block}
+.hsr-wordmark{font-weight:900;font-size:12px;letter-spacing:.1em}
+.hsr-wordmark em{color:var(--volt,#FFD60A);font-style:normal;margin-left:4px}
+.hsr-tools{margin-left:auto;display:flex;gap:2px}
+.hsr-tools button{background:none;border:0;color:#8B8B9E;width:26px;height:26px;
+  border-radius:7px;cursor:pointer;font-size:14px;line-height:1}
+.hsr-tools button:hover{background:#1C1C26;color:#fff}
+
+.hsr-cover{position:relative;aspect-ratio:1/1;background:#15151D}
+.hsr-cover>img{width:100%;height:100%;object-fit:cover;display:block}
+.hsr-cover-fallback{width:100%;height:100%;display:grid;place-items:center;
+  background:linear-gradient(150deg,#1C1C26,#0C0C11)}
+.hsr-cover-fallback span{font-size:76px;font-weight:900;color:var(--volt,#FFD60A);opacity:.22}
+.hsr-scrim{position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(12,12,17,.72) 0%,rgba(12,12,17,0) 34%,rgba(12,12,17,.94) 100%)}
+
+.hsr-badge{position:absolute;top:12px;left:13px;right:13px;display:flex;align-items:center;
+  gap:7px;font-size:10px;font-weight:900;letter-spacing:.15em}
+.hsr-time{margin-left:auto;font-variant-numeric:tabular-nums;color:#C9C9D6;
+  font-weight:700;letter-spacing:.07em}
+.hsr-dot{width:7px;height:7px;border-radius:50%;background:#FF3B5C;
   box-shadow:0 0 0 0 rgba(255,59,92,.7);animation:hsrp 2s infinite}
 .hsr-dot.off{background:#8B8B9E;animation:none;box-shadow:none}
-@keyframes hsrp{70%{box-shadow:0 0 0 9px rgba(255,59,92,0)}100%{box-shadow:0 0 0 0 rgba(255,59,92,0)}}
-.hsr-clock{margin-left:auto;font-variant-numeric:tabular-nums}
+@keyframes hsrp{70%{box-shadow:0 0 0 8px rgba(255,59,92,0)}100%{box-shadow:0 0 0 0 rgba(255,59,92,0)}}
 
-.hsr-title{font-size:clamp(24px,4.5vw,38px);font-weight:900;line-height:1.07;
-  letter-spacing:-.02em;margin-bottom:7px;word-break:break-word}
-.hsr-artist{font-size:12px;letter-spacing:.19em;font-weight:800;color:#FFD60A;min-height:17px}
+.hsr-cover-txt{position:absolute;left:15px;right:15px;bottom:14px}
+.hsr-show{font-size:9.5px;font-weight:900;letter-spacing:.2em;
+  color:var(--volt,#FFD60A);margin-bottom:6px}
+.hsr-title{font-size:22px;font-weight:900;line-height:1.13;letter-spacing:-.015em;
+  margin-bottom:4px;text-shadow:0 2px 14px rgba(0,0,0,.65);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.hsr-artist{font-size:10px;font-weight:800;letter-spacing:.17em;color:#C9C9D6;min-height:14px}
 
-.hsr-row{display:flex;align-items:center;gap:16px;margin-top:22px;flex-wrap:wrap}
-.hsr-btn{background:#FFD60A;color:#000;border:0;border-radius:999px;padding:12px 30px;
-  font-weight:900;font-size:12px;letter-spacing:.11em;cursor:pointer}
+.hsr-bar{display:flex;align-items:center;gap:11px;padding:13px}
+.hsr-btn{background:var(--volt,#FFD60A);color:#000;border:0;border-radius:999px;
+  padding:9px 20px;font-weight:900;font-size:11px;letter-spacing:.11em;cursor:pointer}
 .hsr-btn:hover{filter:brightness(1.08)}
-.hsr-btn:focus-visible{outline:2px solid #fff;outline-offset:3px}
-.hsr-vol{display:flex;align-items:center;gap:8px;color:#8B8B9E;font-size:10px;
-  letter-spacing:.12em;font-weight:800}
-.hsr-vol input{width:104px;accent-color:#FFD60A}
+.hsr-btn:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.hsr-vol{flex:1;min-width:0;accent-color:var(--volt,#FFD60A)}
+.hsr-link{background:none;border:0;color:#8B8B9E;font-size:9.5px;font-weight:900;
+  letter-spacing:.13em;cursor:pointer;padding:4px}
+.hsr-link:hover{color:#fff}
 
-.hsr-sched{background:#15151D;border:1px solid #2A2A38;border-radius:14px;overflow:hidden}
-.hsr-sched h4{font-size:10px;letter-spacing:.18em;color:#8B8B9E;font-weight:800;padding:15px 17px 9px;margin:0}
-.hsr-item{display:flex;align-items:center;gap:15px;padding:12px 17px;border-top:1px solid #2A2A38}
-.hsr-item.on{background:rgba(255,214,10,.07)}
-.hsr-t{font-variant-numeric:tabular-nums;font-size:11px;font-weight:800;color:#8B8B9E;min-width:92px}
-.hsr-n{font-weight:800;font-size:13px;letter-spacing:.02em}
-.hsr-item.on .hsr-n{color:#FFD60A}
-.hsr-d{margin-left:auto;color:#8B8B9E;font-size:11px;text-align:right}
-.hsr-live{font-style:normal;font-size:9px;font-weight:900;letter-spacing:.14em;
-  background:#FF3B5C;color:#fff;padding:3px 7px;border-radius:4px}
+.hsr-sched{border-top:1px solid var(--line,#2A2A38);max-height:238px;overflow:auto}
+.hsr-row{display:flex;align-items:center;gap:11px;padding:9px 13px}
+.hsr-row+.hsr-row{border-top:1px solid rgba(42,42,56,.55)}
+.hsr-row.on{background:rgba(255,214,10,.07)}
+.hsr-thumb{width:38px;height:38px;border-radius:8px;overflow:hidden;flex-shrink:0;
+  background:#1C1C26;display:grid;place-items:center}
+.hsr-thumb img{width:100%;height:100%;object-fit:cover}
+.hsr-thumb span{font-weight:900;color:#8B8B9E;font-size:15px}
+.hsr-rowname{font-size:11.5px;font-weight:800;letter-spacing:.03em}
+.hsr-row.on .hsr-rowname{color:var(--volt,#FFD60A)}
+.hsr-rowtime{font-size:10px;color:#8B8B9E;font-weight:700;margin-top:2px;
+  font-variant-numeric:tabular-nums}
+.hsr-live{margin-left:auto;font-style:normal;font-size:8.5px;font-weight:900;
+  letter-spacing:.14em;background:#FF3B5C;color:#fff;padding:3px 6px;border-radius:4px}
 
-.hsr-note,.hsr-err{padding:22px;color:#8B8B9E;font-size:13px;line-height:1.6}
+.hsr-mini{display:flex;align-items:center;gap:11px;padding:11px 13px}
+.hsr-mini-art{position:relative;width:42px;height:42px;border-radius:9px;overflow:hidden;
+  flex-shrink:0;background:#1C1C26;display:grid;place-items:center}
+.hsr-mini-art img{width:100%;height:100%;object-fit:cover}
+.hsr-mini-art span{font-weight:900;color:var(--volt,#FFD60A)}
+.hsr-mini-txt{min-width:0;flex:1}
+.hsr-mini-title{font-size:12.5px;font-weight:800;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.hsr-mini-artist{font-size:9.5px;font-weight:800;letter-spacing:.14em;color:#8B8B9E;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.hsr-play{background:var(--volt,#FFD60A);color:#000;border:0;width:34px;height:34px;
+  border-radius:50%;cursor:pointer;font-size:12px;flex-shrink:0}
+
+.hsr-eq{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;
+  gap:2px;padding-bottom:6px;background:rgba(12,12,17,.5)}
+.hsr-eq b{width:3px;background:var(--volt,#FFD60A);border-radius:2px;
+  animation:hsreq .9s infinite ease-in-out}
+.hsr-eq b:nth-child(2){animation-delay:.15s}
+.hsr-eq b:nth-child(3){animation-delay:.3s}
+@keyframes hsreq{0%,100%{height:5px}50%{height:15px}}
+
+.hsr-msg{padding:20px;color:#8B8B9E;font-size:12.5px;line-height:1.6}
 .hsr-err{color:#FF3B5C}
-@media (prefers-reduced-motion:reduce){.hsr-dot{animation:none}}
+@media (prefers-reduced-motion:reduce){.hsr-dot,.hsr-eq b{animation:none}}
 `;
