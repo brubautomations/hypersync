@@ -40,8 +40,8 @@ const CFG = {
 };
 
 /* ---------- clock ---------- */
-const nowManila = () =>
-  new Date(Date.now() + (CFG.TZ * 60 + new Date().getTimezoneOffset()) * 60000);
+const tzShift = () => (CFG.TZ * 60 + new Date().getTimezoneOffset()) * 60000;
+const nowManila = () => new Date(Date.now() + tzShift());
 const toMin = (s) => {
   const [h, m] = String(s).split(":").map(Number);
   return (h || 0) * 60 + (m || 0);
@@ -198,27 +198,60 @@ export default function Radio() {
     if (!blk || !lib) return { items: [], blk };
 
     const rnd = mulberry32(seed(`${t.toISOString().slice(0, 10)}|${blk.show.id}`));
-    const pool = lib.songs.filter((s) => s.shows.includes(blk.show.id));
+    // Only songs that existed before this block began. Two listeners who
+    // fetched the library at different moments still build the same running
+    // order; anything added mid-block joins at the next show, automatically
+    // and with no redeploy.
+    const dayStart = new Date(t);
+    dayStart.setHours(0, 0, 0, 0);
+    const blockStartMs = dayStart.getTime() + blk.start * 60000;
+
+    const tagged = lib.songs.filter((s) => s.shows.includes(blk.show.id));
+    const settled = tagged.filter(
+      (s) => !s.created || new Date(s.created).getTime() + tzShift() < blockStartMs
+    );
+    const pool = settled.length ? settled : tagged;   // brand-new station: use everything
     setPool(pool.length);
     if (!pool.length) return { items: [], blk, empty: true };
 
     const showDrops = lib.drops.filter((d) => !d.shows.length || d.shows.includes(blk.show.id));
     const voice = showDrops.length ? showDrops : lib.drops;
 
-    const songQ = shuffled(pool, rnd);
+    // A fresh shuffle each time the pool is exhausted, and never the same
+    // track either side of a pass boundary — so nothing repeats until
+    // everything has played, and the order differs on every pass.
+    let bag = [];
+    let lastPlayed = null;
+    const nextSong = (playable) => {
+      if (!bag.length) {
+        bag = shuffled(playable, rnd);
+        if (bag.length > 1 && lastPlayed && bag[0].url === lastPlayed) {
+          const swap = 1 + Math.floor(rnd() * (bag.length - 1));
+          [bag[0], bag[swap]] = [bag[swap], bag[0]];
+        }
+      }
+      const s = bag.shift();
+      lastPlayed = s.url;
+      return s;
+    };
+
     const dropQ = shuffled(voice, rnd);
     const adQ = shuffled(lib.ads, rnd);
 
-    await Promise.all([...new Set([...songQ, ...dropQ, ...adQ].map((x) => x.url))].map(probe));
-    setBadCount(songQ.filter((s) => !durCache.get(s.url)).length);
+    await Promise.all(
+      [...new Set([...pool, ...dropQ, ...adQ].map((x) => x.url))].map(probe)
+    );
+    const playable = pool.filter((s) => durCache.get(s.url) > 0);
+    setBadCount(pool.length - playable.length);
+    if (!playable.length) return { items: [], blk, empty: true };
 
     const startSec = blk.start * 60, endSec = blk.end * 60;
-    let at = startSec, si = 0, di = 0, ai = 0;
+    let at = startSec, di = 0, ai = 0;
     const items = [];
 
     const put = (o, xfade) => {
       const dur = durCache.get(o.url) || 0;
-      if (!dur) return true;              // unreadable file — skipped for everyone
+      if (!dur) return true;              // drop/ad that wouldn't load — skip it
       if (at + dur > endSec) return false;
       items.push({ ...o, at, dur });
       at += dur - (xfade || 0);
@@ -231,7 +264,7 @@ export default function Radio() {
     outer: while (at < endSec && guard++ < 800) {
       const n = CFG.SONGS_MIN + Math.floor(rnd() * (CFG.SONGS_MAX - CFG.SONGS_MIN + 1));
       for (let k = 0; k < n; k++) {
-        const s = songQ[si++ % songQ.length];
+        const s = nextSong(playable);
         if (!put({ kind: "song", title: s.title, artist: s.artist, url: s.url }, CFG.XFADE))
           break outer;
       }
@@ -463,7 +496,7 @@ export default function Radio() {
       {audioErr && <div className="rw-err">{audioErr}</div>}
 
       <div className="rw-diag">
-        {lib ? `${lib.songs.length} songs loaded · ${pool} in this show · ${lib.drops.length} drops · ${lib.ads.length} ads${badCount ? ` · ${badCount} unreadable` : ""}` : "loading…"}
+        {lib ? `${lib.songs.length} songs loaded · ${pool} in this show${badCount ? ` (${badCount} unreadable)` : ""} · ${lib.drops.length} drops · ${lib.ads.length} ads` : "loading…"}
       </div>
 
       {listOpen && (

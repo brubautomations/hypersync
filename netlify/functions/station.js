@@ -112,6 +112,7 @@ export default async (req) => {
         url: r.fields["File URL"] || "",
         shows: linkedShows(r.fields),
         active: r.fields.Played !== false,
+        created: r.createdTime,   // lets new songs join at the next show boundary
       }))
       .filter((s) => s.url && s.active);
 
