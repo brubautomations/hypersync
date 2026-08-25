@@ -24,9 +24,19 @@ async function table(name, token, base) {
     url.searchParams.set("pageSize", "100");
     if (offset) url.searchParams.set("offset", offset);
 
-    const res = await fetch(url, {
+    let res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
     });
+
+    // Airtable throws the occasional 429/5xx. Wait a moment and try once more
+    // before treating it as a real failure.
+    if (!res.ok && res.status !== 404 && res.status !== 401) {
+      await new Promise((r) => setTimeout(r, 600));
+      res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    }
+
     if (!res.ok) {
       if (res.status === 404) return []; // table not created yet — treat as empty
       throw new Error(`${name}: ${res.status}`);
@@ -64,11 +74,15 @@ export default async (req) => {
   }
 
   try {
+    // SHOWS and SONGS are required. DROPS and ADS are optional — if either
+    // fails, the station carries on with music instead of going dark.
+    const optional = (name) => table(name, token, base).catch(() => []);
+
     const [showRecs, songRecs, dropRecs, adRecs] = await Promise.all([
       table(T.SHOWS, token, base),
       table(T.SONGS, token, base),
-      table(T.DROPS, token, base),
-      table(T.ADS, token, base),
+      optional(T.DROPS),
+      optional(T.ADS),
     ]);
 
     const shows = showRecs
