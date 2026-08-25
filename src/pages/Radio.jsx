@@ -144,6 +144,9 @@ export default function Radio() {
   const [, setTick] = useState(0);
   const [vol, setVol] = useState(0.85);
   const [listOpen, setListOpen] = useState(false);
+  // the readout is for you, not listeners: hypersync.live/radio?debug=1
+  const debug = typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("debug") === "1";
   const [empty, setEmpty] = useState(false);
   const [pool, setPool] = useState(0);
   const [audioErr, setAudioErr] = useState("");
@@ -556,9 +559,11 @@ export default function Radio() {
       {err && <div className="rw-err">{err}</div>}
       {audioErr && <div className="rw-err">{audioErr}</div>}
 
-      <div className="rw-diag">
-        {lib ? `${lib.songs.length} songs loaded · ${pool} in this show${badCount ? ` (${badCount} unreadable)` : ""} · ${lib.drops.length} drops · ${lib.ads.length} ads` : "loading…"}
-      </div>
+      {debug && (
+        <div className="rw-diag">
+          {lib ? `${lib.songs.length} songs loaded · ${pool} in this show${badCount ? ` (${badCount} unreadable)` : ""} · ${lib.drops.length} drops · ${lib.ads.length} ads` : "loading…"}
+        </div>
+      )}
 
       {listOpen && (
         <div className="rw-sched">
