@@ -104,6 +104,17 @@ export default async (req) => {
       return [];
     };
 
+    // "Intro URL" / "Outro URL" on SONGS. Several URLs separated by commas
+    // gives the player variants to choose between.
+    const urlList = (fields, names) => {
+      for (const n of names) {
+        const v = fields[n];
+        if (typeof v === "string" && v.trim())
+          return v.split(",").map((x) => x.trim()).filter(Boolean);
+      }
+      return [];
+    };
+
     const songs = songRecs
       .map((r) => ({
         id: r.id,
@@ -113,6 +124,8 @@ export default async (req) => {
         shows: linkedShows(r.fields),
         active: r.fields.Played !== false,
         created: r.createdTime,   // lets new songs join at the next show boundary
+        intros: urlList(r.fields, ["Intro URL", "Intro", "INTRO", "Intro Url"]),
+        outros: urlList(r.fields, ["Outro URL", "Outro", "OUTRO", "Outro Url"]),
       }))
       .filter((s) => s.url && s.active);
 

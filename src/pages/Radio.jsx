@@ -28,10 +28,17 @@ const CFG = {
   ADS_MIN: 3,
   ADS_MAX: 4,
 
-  P_OUTRO: 0.5,
-  P_FILLER: 0.4,
-  P_STATION: 0.5,
-  P_INTRO: 0.6,
+  // How many voice lines a break gets. Weights, not a fixed pattern.
+  BREAK_ONE: 0.50,        // half the breaks are a single line
+  BREAK_TWO: 0.38,        // most of the rest are two
+  // whatever's left is three
+
+  // Relative likelihood of each KIND being picked for a break.
+  // Which ones appear, and in what order, is drawn fresh every time.
+  W_OUTRO: 3,             // "that was ..."
+  W_FILLER: 1,            // quote / question / rib
+  W_STATION: 4,           // station ID
+  W_INTRO: 4,             // "here's ..." 
 
   XFADE: 2.0,
   XFADE_VOICE: 0.6,
@@ -260,24 +267,76 @@ export default function Radio() {
     const roll = (p) => rnd() < p;
     const nextDrop = () => (dropQ.length ? dropQ[di++ % dropQ.length] : null);
 
-    let guard = 0;
-    outer: while (at < endSec && guard++ < 800) {
+    const drawSet = () => {
       const n = CFG.SONGS_MIN + Math.floor(rnd() * (CFG.SONGS_MAX - CFG.SONGS_MIN + 1));
-      for (let k = 0; k < n; k++) {
-        const s = nextSong(playable);
+      return Array.from({ length: n }, () => nextSong(playable));
+    };
+    const pick = (arr) => (arr && arr.length ? arr[Math.floor(rnd() * arr.length)] : null);
+
+    let pending = null;
+    let guard = 0;
+
+    outer: while (at < endSec && guard++ < 800) {
+      const set = pending || drawSet();
+      pending = null;
+
+      for (const s of set) {
         if (!put({ kind: "song", title: s.title, artist: s.artist, url: s.url }, CFG.XFADE))
           break outer;
       }
-      let spoke = false;
-      const voiceLine = (p) => {
-        if (!roll(p)) return;
-        const d = nextDrop(); if (!d) return;
-        if (put({ kind: "voice", title: "HYPERSYNC RADIO", artist: "", url: d.url }, CFG.XFADE_VOICE))
-          spoke = true;
-      };
-      voiceLine(CFG.P_OUTRO);
-      voiceLine(CFG.P_FILLER);
-      voiceLine(CFG.P_STATION);
+      const justPlayed = set[set.length - 1];
+
+      // know what's coming, so the DJ can introduce it
+      pending = drawSet();
+      const comingUp = pending[0];
+
+      // Every break is drawn fresh: how many lines, which kinds, what order.
+      // No fixed intro/filler/ID/outro sequence — sometimes it's just a
+      // station ID, sometimes an outro then a rib, sometimes only an intro.
+      const roll = rnd();
+      const want = roll < CFG.BREAK_ONE ? 1 : roll < CFG.BREAK_ONE + CFG.BREAK_TWO ? 2 : 3;
+
+      const outroUrl = pick(justPlayed.outros);
+      const introUrl = pick(comingUp.intros);
+      const aDrop = () => (dropQ.length ? dropQ[di++ % dropQ.length].url : null);
+
+      const menu = [];
+      if (outroUrl) menu.push({ kind: "outro", w: CFG.W_OUTRO, url: outroUrl });
+      if (dropQ.length) menu.push({ kind: "filler", w: CFG.W_FILLER });
+      if (dropQ.length) menu.push({ kind: "station", w: CFG.W_STATION });
+      if (introUrl) menu.push({ kind: "intro", w: CFG.W_INTRO, url: introUrl });
+
+      // weighted draw without replacement
+      const chosen = [];
+      const left = menu.slice();
+      while (chosen.length < want && left.length) {
+        let total = left.reduce((s, x) => s + x.w, 0);
+        let t = rnd() * total;
+        let idx = 0;
+        for (; idx < left.length; idx++) {
+          t -= left[idx].w;
+          if (t <= 0) break;
+        }
+        chosen.push(left.splice(Math.min(idx, left.length - 1), 1)[0]);
+      }
+
+      // An outro refers to the song that just ended, so it sits before the
+      // ads. An intro refers to what's next, so it sits after. Fillers and
+      // station IDs land on either side, at random.
+      const before = [], after = [];
+      for (const c of chosen) {
+        const url = c.url || aDrop();
+        if (!url) continue;
+        if (c.kind === "outro") before.push(url);
+        else if (c.kind === "intro") after.push(url);
+        else (rnd() < 0.5 ? before : after).push(url);
+      }
+
+      const say = (url) =>
+        put({ kind: "voice", title: "HYPERSYNC RADIO", artist: "", url }, CFG.XFADE_VOICE);
+
+      for (const url of before) if (!say(url)) break outer;
+
       if (adQ.length) {
         const k = CFG.ADS_MIN + Math.floor(rnd() * (CFG.ADS_MAX - CFG.ADS_MIN + 1));
         for (let j = 0; j < k; j++) {
@@ -286,8 +345,10 @@ export default function Radio() {
             break outer;
         }
       }
-      if (!spoke) voiceLine(1); else voiceLine(CFG.P_INTRO);
+
+      for (const url of after) if (!say(url)) break outer;
     }
+
     return { items, blk };
   }, [lib, findBlock]);
 
