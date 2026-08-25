@@ -477,6 +477,33 @@ export default function Radio() {
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
+  /* ---------- watchdog ----------
+     Background windows get their timers throttled, so a handoff scheduled
+     minutes ahead can fire late or not at all. Every few seconds this checks
+     the clock against what's actually playing and corrects it, so a missed
+     timer costs a few seconds instead of stopping the station. */
+  useEffect(() => {
+    if (!live) return;
+    const id = setInterval(() => {
+      const items = line.current;
+      const t = nowManila();
+
+      if (!items.length) { resync(); return; }
+
+      const spot = locate(t, items, block);
+      if (!spot) { resync(); return; }
+
+      const target = items[spot.i];
+      const deckNow = deck.current[active.current];
+      const wrongTrack = !deckNow || deckNow.src !== target.url;
+      const stalled = deckNow && deckNow.paused;
+      const adrift = deckNow && Math.abs(deckNow.currentTime - spot.off) > 6;
+
+      if (wrongTrack || stalled || adrift) playIndex(spot.i, spot.off);
+    }, 5000);
+    return () => clearInterval(id);
+  }, [live, block, locate, playIndex, resync]);
+
   const t = nowManila();
   const shows = lib?.shows || [];
   const art = block?.show?.art || "";
