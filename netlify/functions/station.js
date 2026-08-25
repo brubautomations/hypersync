@@ -81,13 +81,34 @@ export default async (req) => {
       }))
       .filter((s) => s.name && s.start && s.end);
 
+    // The link field's name varies (Shows / SHOWS / Show...). Rather than
+    // guess, find whichever field actually holds SHOWS record ids.
+    const showIds = new Set(shows.map((s) => s.id));
+    const linkedShows = (fields) => {
+      for (const key of ["Shows", "SHOWS", "Show", "shows"]) {
+        const v = fields[key];
+        if (Array.isArray(v) && v.some((x) => showIds.has(x)))
+          return v.filter((x) => showIds.has(x));
+      }
+      for (const v of Object.values(fields)) {
+        if (
+          Array.isArray(v) &&
+          v.length &&
+          v.every((x) => typeof x === "string") &&
+          v.some((x) => showIds.has(x))
+        )
+          return v.filter((x) => showIds.has(x));
+      }
+      return [];
+    };
+
     const songs = songRecs
       .map((r) => ({
         id: r.id,
         title: r.fields.Title || "",
         artist: r.fields.Artist || "",
         url: r.fields["File URL"] || "",
-        shows: r.fields.Shows || [],
+        shows: linkedShows(r.fields),
         active: r.fields.Played !== false,
       }))
       .filter((s) => s.url && s.active);
@@ -97,7 +118,7 @@ export default async (req) => {
         id: r.id,
         url: r.fields["File URL"] || "",
         type: r.fields.Type || "Station ID",
-        shows: r.fields.Shows || [],
+        shows: linkedShows(r.fields),
       }))
       .filter((d) => d.url);
 
@@ -111,7 +132,14 @@ export default async (req) => {
       .filter((a) => a.url && a.active);
 
     return Response.json(
-      { shows, songs, drops, ads, at: Date.now() },
+      {
+        shows,
+        songs,
+        drops,
+        ads,
+        at: Date.now(),
+        songFields: songRecs.length ? Object.keys(songRecs[0].fields) : [],
+      },
       {
         headers: {
           // never cache: the library changes in Airtable while the station runs
