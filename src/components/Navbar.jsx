@@ -89,15 +89,15 @@ export default function Navbar() {
             title="HYPERSYNC Radio"
             aria-label="Open HYPERSYNC Radio"
             style={{
-              flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8,
-              cursor: 'pointer', padding: '6px 14px',
+              flexShrink: 0, display: 'flex', alignItems: 'center', gap: 9,
+              cursor: 'pointer', padding: '7px 16px',
             }}
           >
             <span className="radio-dot" />
             <img
               src="/radio-logo.png"
               alt="HYPERSYNC RADIO"
-              style={{ height: 18, width: 'auto', display: 'block' }}
+              style={{ height: 28, width: 'auto', display: 'block' }}
               onError={e => {
                 e.currentTarget.replaceWith(
                   Object.assign(document.createElement('span'), {

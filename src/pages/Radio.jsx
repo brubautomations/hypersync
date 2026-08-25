@@ -6,9 +6,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
    Opened with window.open() from the nav, so it's a real
    browser window the OS can move and resize. Layout:
 
-     [ show art banner — changes with the current show ]
-     [ canvas — each show's own looping backdrop        ]
-     [ now playing + controls + schedule                ]
+     [ show art from Airtable    ][ local time ]
+     [ canvas / visualizer — the show's own loop ]
+     [ now playing + controls + schedule         ]
+
+   The page covers the whole viewport, so the site's navbar
+   and chat rail don't show through in the popup.
 
    Each show carries its own loop in the SHOWS table's
    Canvas attachment field. Shows without one fall back to
@@ -46,6 +49,20 @@ const toMin = (s) => {
 const clock = (d) =>
   [d.getHours(), d.getMinutes(), d.getSeconds()]
     .map((n) => String(n).padStart(2, "0")).join(":");
+// what the listener sees: their own local time, wherever they are
+const localClock = () => {
+  const d = new Date();
+  const hh = d.getHours(), mm = String(d.getMinutes()).padStart(2, "0");
+  const ap = hh < 12 ? "AM" : "PM";
+  return `${hh % 12 === 0 ? 12 : hh % 12}:${mm} ${ap}`;
+};
+const localZone = () => {
+  try {
+    return new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
+      .formatToParts(new Date())
+      .find((p) => p.type === "timeZoneName")?.value || "";
+  } catch { return ""; }
+};
 const label = (mins) => {
   const h = Math.floor(mins / 60) % 24, m = mins % 60;
   const ap = h < 12 ? "AM" : "PM";
@@ -340,7 +357,7 @@ export default function Radio() {
     <div className="rw">
       <style>{CSS}</style>
 
-      {/* ---------- show art header ---------- */}
+      {/* ---------- show art + local time ---------- */}
       <header className="rw-head">
         {art
           ? <img className="rw-art" src={art} alt={block?.show?.name || ""} />
@@ -348,17 +365,25 @@ export default function Radio() {
               <img src={CFG.LOGO} alt="HYPERSYNC RADIO"
                    onError={(e) => { e.currentTarget.style.display = "none"; }} />
             </div>}
-        <div className="rw-status">
-          <i className={onAir ? "rw-dot" : "rw-dot off"} />
-          {!live ? "OFF AIR"
-            : nowItem?.kind === "ad" ? "AD BREAK"
-            : nowItem?.kind === "break" ? "STATION BREAK"
-            : "ON AIR"}
-          <span className="rw-clock">{clock(t)}</span>
+
+        <div className="rw-timechip">
+          <div className="rw-tnow">{localClock()}</div>
+          <div className="rw-tzone">{localZone()}</div>
         </div>
       </header>
 
-      {/* ---------- show canvas ---------- */}
+      <div className="rw-status">
+        <i className={onAir ? "rw-dot" : "rw-dot off"} />
+        {!live ? "OFF AIR"
+          : nowItem?.kind === "ad" ? "AD BREAK"
+          : nowItem?.kind === "break" ? "STATION BREAK"
+          : "ON AIR"}
+        <span className="rw-showname">
+          {block ? block.show.name.toUpperCase() : "BETWEEN SHOWS"}
+        </span>
+      </div>
+
+      {/* ---------- canvas / visualizer ---------- */}
       <div className="rw-stage">
         {block?.show?.canvas ? (
           <video
@@ -376,9 +401,6 @@ export default function Radio() {
         <div className="rw-veil" />
 
         <div className="rw-meta">
-          <div className="rw-show">
-            {block ? block.show.name.toUpperCase() : "BETWEEN SHOWS"}
-          </div>
           <h1 className="rw-title">{nowItem ? nowItem.title : "Ready when you are"}</h1>
           <div className="rw-by">{(nowItem?.artist || "").toUpperCase()}</div>
         </div>
@@ -423,30 +445,43 @@ export default function Radio() {
 }
 
 const CSS = `
-.rw{min-height:100vh;background:#0C0C11;color:#fff;display:flex;flex-direction:column;
+/* covers the viewport so the site's navbar and chat rail can't show through */
+.rw{position:fixed;inset:0;z-index:2147483000;overflow:auto;
+  background:#0C0C11;color:#fff;display:flex;flex-direction:column;
   font-family:Inter,'Helvetica Neue',Arial,sans-serif}
 
-.rw-head{position:relative;background:#101017;border-bottom:1px solid #2A2A38}
-.rw-art{display:block;width:100%;height:auto;max-height:150px;object-fit:cover}
-.rw-art--none{display:grid;place-items:center;height:104px;background:#15151D}
-.rw-art--none img{height:34px;width:auto}
-.rw-status{display:flex;align-items:center;gap:8px;padding:9px 14px;
-  font-size:10px;font-weight:900;letter-spacing:.16em;background:#101017}
-.rw-clock{margin-left:auto;font-variant-numeric:tabular-nums;color:#8B8B9E;
-  font-weight:700;letter-spacing:.08em}
+/* ---- show art band ---- */
+.rw-head{position:relative;background:#101017;border-bottom:1px solid #2A2A38;flex-shrink:0}
+.rw-art{display:block;width:100%;height:auto;max-height:132px;object-fit:cover}
+.rw-art--none{display:grid;place-items:center;height:96px;background:#15151D}
+.rw-art--none img{height:38px;width:auto}
+
+.rw-timechip{position:absolute;top:10px;right:10px;text-align:right;
+  background:rgba(12,12,17,.78);backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:6px 11px}
+.rw-tnow{font-size:15px;font-weight:900;letter-spacing:.02em;
+  font-variant-numeric:tabular-nums;line-height:1.1}
+.rw-tzone{font-size:8.5px;font-weight:800;letter-spacing:.15em;color:#8B8B9E;margin-top:1px}
+
+/* ---- status strip ---- */
+.rw-status{display:flex;align-items:center;gap:8px;padding:9px 14px;flex-shrink:0;
+  font-size:10px;font-weight:900;letter-spacing:.16em;background:#101017;
+  border-bottom:1px solid #2A2A38}
+.rw-showname{margin-left:auto;color:var(--volt,#FFD60A);letter-spacing:.18em}
 .rw-dot{width:7px;height:7px;border-radius:50%;background:#FF3B5C;
   box-shadow:0 0 0 0 rgba(255,59,92,.7);animation:rwp 2s infinite}
 .rw-dot.off{background:#8B8B9E;animation:none;box-shadow:none}
 @keyframes rwp{70%{box-shadow:0 0 0 8px rgba(255,59,92,0)}100%{box-shadow:0 0 0 0 rgba(255,59,92,0)}}
 
-.rw-stage{position:relative;flex:1;min-height:230px;overflow:hidden;background:#0C0C11}
+/* ---- canvas stage ---- */
+.rw-stage{position:relative;flex:1;min-height:280px;overflow:hidden;background:#0C0C11}
 .rw-canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .rw-veil{position:absolute;inset:0;
-  background:linear-gradient(180deg,rgba(12,12,17,.25),rgba(12,12,17,.92))}
+  background:linear-gradient(180deg,rgba(12,12,17,.15),rgba(12,12,17,.92))}
 
 .rw-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  gap:7px;opacity:.5}
-.rw-fallback span{width:7px;background:var(--volt,#FFD60A);border-radius:4px;
+  gap:8px;opacity:.5}
+.rw-fallback span{width:8px;background:var(--volt,#FFD60A);border-radius:4px;
   animation:rwbar 1.5s ease-in-out infinite}
 .rw-fallback span:nth-child(1){animation-delay:0s}
 .rw-fallback span:nth-child(2){animation-delay:.13s}
@@ -458,15 +493,15 @@ const CSS = `
 .rw-fallback span:nth-child(8){animation-delay:.2s}
 .rw-fallback span:nth-child(9){animation-delay:.1s}
 .rw-fallback span:nth-child(10){animation-delay:0s}
-@keyframes rwbar{0%,100%{height:16px}50%{height:96px}}
+@keyframes rwbar{0%,100%{height:18px}50%{height:110px}}
 
 .rw-meta{position:absolute;left:18px;right:18px;bottom:16px}
-.rw-show{font-size:10px;font-weight:900;letter-spacing:.22em;color:var(--volt,#FFD60A);margin-bottom:8px}
 .rw-title{font-size:clamp(22px,4.4vw,34px);font-weight:900;line-height:1.1;
   letter-spacing:-.02em;margin:0 0 5px;text-shadow:0 2px 16px rgba(0,0,0,.7)}
 .rw-by{font-size:11px;font-weight:800;letter-spacing:.18em;color:#C9C9D6;min-height:15px}
 
-.rw-bar{display:flex;align-items:center;gap:13px;padding:14px;
+/* ---- controls ---- */
+.rw-bar{display:flex;align-items:center;gap:13px;padding:14px;flex-shrink:0;
   border-top:1px solid #2A2A38;background:#101017}
 .rw-btn{background:var(--volt,#FFD60A);color:#000;border:0;border-radius:999px;
   padding:11px 26px;font-weight:900;font-size:11.5px;letter-spacing:.12em;cursor:pointer}
@@ -478,11 +513,12 @@ const CSS = `
   letter-spacing:.14em;cursor:pointer;padding:5px;white-space:nowrap}
 .rw-link:hover{color:#fff}
 
-.rw-sched{border-top:1px solid #2A2A38;background:#0C0C11}
+/* ---- schedule ---- */
+.rw-sched{border-top:1px solid #2A2A38;background:#0C0C11;flex-shrink:0}
 .rw-row{display:flex;align-items:center;gap:12px;padding:10px 14px}
 .rw-row+.rw-row{border-top:1px solid rgba(42,42,56,.55)}
 .rw-row.on{background:rgba(255,214,10,.07)}
-.rw-thumb{width:44px;height:32px;border-radius:6px;overflow:hidden;flex-shrink:0;
+.rw-thumb{width:52px;height:30px;border-radius:6px;overflow:hidden;flex-shrink:0;
   background:#1C1C26;display:grid;place-items:center}
 .rw-thumb img{width:100%;height:100%;object-fit:cover}
 .rw-thumb span{font-weight:900;color:#8B8B9E;font-size:14px}
