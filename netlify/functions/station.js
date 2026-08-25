@@ -43,8 +43,20 @@ export default async (req) => {
   const base = process.env.RADIO_BASE_ID;
 
   if (!token || !base) {
+    // Diagnostic: report which variable names this function can see.
+    // Names only — no values are ever returned.
+    const seen = Object.keys(process.env).sort();
     return Response.json(
-      { error: "RADIO_TOKEN and RADIO_BASE_ID are not set in Netlify." },
+      {
+        error: "RADIO_TOKEN and RADIO_BASE_ID are not visible to this function.",
+        hasToken: !!token,
+        hasBase: !!base,
+        context: process.env.CONTEXT || "(none)",
+        branch: process.env.BRANCH || "(none)",
+        siteName: process.env.SITE_NAME || "(none)",
+        matching: seen.filter((k) => /RADIO|AIRTABLE/i.test(k)),
+        totalVars: seen.length,
+      },
       { status: 500 }
     );
   }
