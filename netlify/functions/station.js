@@ -4,8 +4,8 @@
 // Nothing secret ever reaches the browser.
 //
 // In Netlify → Site settings → Environment variables, add:
-//   AIRTABLE_TOKEN   your personal access token (scope: data.records:read)
-//   AIRTABLE_BASE    your base id, starts with "app"
+//   RADIO_TOKEN     your personal access token (scope: data.records:read)
+//   RADIO_BASE_ID   your radio base id, starts with "app"
 
 const T = {
   SHOWS: "SHOWS",
@@ -39,12 +39,12 @@ async function table(name, token, base) {
 }
 
 export default async (req) => {
-  const token = process.env.AIRTABLE_TOKEN;
-  const base = process.env.AIRTABLE_BASE;
+  const token = process.env.RADIO_TOKEN;
+  const base = process.env.RADIO_BASE_ID;
 
   if (!token || !base) {
     return Response.json(
-      { error: "AIRTABLE_TOKEN and AIRTABLE_BASE are not set in Netlify." },
+      { error: "RADIO_TOKEN and RADIO_BASE_ID are not set in Netlify." },
       { status: 500 }
     );
   }
