@@ -2,7 +2,6 @@ import { Link, useLocation } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useCredits } from '../context/CreditContext'
-import HypersyncRadio from './HypersyncRadio'
 
 const LINKS = [
   { label: 'Home', path: '/' },
@@ -46,9 +45,27 @@ export default function Navbar() {
   const [showSignIn, setShowSignIn] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenu, setUserMenu] = useState(false)
-  const [radioOpen, setRadioOpen] = useState(false)
+  const radioWin = useRef(null)
 
   useEffect(() => { setMenuOpen(false); setUserMenu(false) }, [location.pathname])
+
+  // opens the station as its own browser window; on phones there are no
+  // popups, so it falls back to a normal tab
+  const openRadio = () => {
+    if (radioWin.current && !radioWin.current.closed) {
+      radioWin.current.focus()
+      return
+    }
+    const w = 440, h = 720
+    const x = window.screenX + Math.max(0, window.outerWidth - w - 40)
+    const y = window.screenY + 80
+    const win = window.open(
+      '/radio', 'hypersync_radio',
+      `width=${w},height=${h},left=${x},top=${y},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`
+    )
+    if (win) { radioWin.current = win; win.focus() }
+    else window.open('/radio', '_blank')   // popup blocked, or mobile
+  }
 
   return (
     <>
@@ -68,15 +85,28 @@ export default function Navbar() {
           {/* radio — sits left of the nav links, as in the mock */}
           <button
             className="chip chip--volt-line radio-chip"
-            onClick={() => setRadioOpen(true)}
+            onClick={openRadio}
             title="HYPERSYNC Radio"
+            aria-label="Open HYPERSYNC Radio"
             style={{
-              flexShrink: 0, display: 'flex', alignItems: 'center', gap: 7,
-              cursor: 'pointer', letterSpacing: '.06em', fontWeight: 800,
+              flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8,
+              cursor: 'pointer', padding: '6px 14px',
             }}
           >
             <span className="radio-dot" />
-            RADIO
+            <img
+              src="/radio-logo.png"
+              alt="HYPERSYNC RADIO"
+              style={{ height: 18, width: 'auto', display: 'block' }}
+              onError={e => {
+                e.currentTarget.replaceWith(
+                  Object.assign(document.createElement('span'), {
+                    textContent: 'RADIO',
+                    style: 'font-weight:800;letter-spacing:.06em',
+                  })
+                )
+              }}
+            />
           </button>
 
           {/* desktop links */}
@@ -151,7 +181,7 @@ export default function Navbar() {
           <div style={{ borderTop: '1px solid var(--line)', padding: '10px 18px 16px', display: 'grid', gap: 6 }}>
             <button
               className="chip chip--volt-line"
-              onClick={() => { setMenuOpen(false); setRadioOpen(true) }}
+              onClick={() => { setMenuOpen(false); openRadio() }}
               style={{
                 justifyContent: 'center', padding: '12px 14px', fontSize: '0.8rem',
                 display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer',
@@ -197,9 +227,6 @@ export default function Navbar() {
       `}</style>
 
       {showSignIn && !isSignedIn && <SignInModal onClose={() => setShowSignIn(false)} />}
-
-      {/* mounted here so audio keeps playing as you move between pages */}
-      <HypersyncRadio open={radioOpen} onClose={() => setRadioOpen(false)} />
     </>
   )
 }

@@ -77,6 +77,7 @@ export default async (req) => {
         end: r.fields.End || "",
         desc: r.fields.Description || "",
         art: (r.fields.Art && r.fields.Art[0] && r.fields.Art[0].url) || "",
+        canvas: (r.fields.Canvas && r.fields.Canvas[0] && r.fields.Canvas[0].url) || "",
       }))
       .filter((s) => s.name && s.start && s.end);
 
