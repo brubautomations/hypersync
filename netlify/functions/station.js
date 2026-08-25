@@ -39,6 +39,8 @@ async function table(name, token, base) {
 }
 
 export default async (req) => {
+  // /api/station?fresh=1 skips the edge cache — handy right after editing Airtable
+  const fresh = new URL(req.url).searchParams.get("fresh") === "1";
   const token = process.env.RADIO_TOKEN;
   const base = process.env.RADIO_BASE_ID;
 
@@ -142,8 +144,19 @@ export default async (req) => {
       },
       {
         headers: {
-          // never cache: the library changes in Airtable while the station runs
-          "Cache-Control": "no-store, max-age=0",
+          // Everyone gets the identical payload, so cache it at Netlify's edge
+          // rather than calling the function per listener. 1,000 listeners
+          // become a handful of real invocations.
+          //
+          //   s-maxage=120                 edge keeps it 2 minutes
+          //   stale-while-revalidate=600   serves the old copy while refreshing
+          //   max-age=0                    listeners' own browsers never cache,
+          //                                so an edge purge takes effect at once
+          "Cache-Control": "public, max-age=0, s-maxage=120, stale-while-revalidate=600",
+          "Netlify-CDN-Cache-Control":
+            "public, s-maxage=120, stale-while-revalidate=600",
+          "Netlify-Cache-Tag": "station",
+          ...(fresh ? { "Cache-Control": "no-store", "Netlify-CDN-Cache-Control": "no-store" } : {}),
         },
       }
     );
