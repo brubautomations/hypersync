@@ -617,11 +617,13 @@ export default function Radio() {
         <div className="rw-meta">
           <h1 className="rw-title">
             {nowItem ? nowItem.title
+              : empty && block?.gap ? "Station break"
               : empty ? "No songs tagged for this show"
               : "Ready when you are"}
           </h1>
           <div className="rw-by">
             {nowItem ? (nowItem.artist || "").toUpperCase()
+              : empty && block?.gap ? "NOTHING IN ADS — BACK WHEN THE NEXT SHOW STARTS"
               : empty ? "OPEN SONGS IN AIRTABLE AND FILL THE SHOWS COLUMN"
               : ""}
           </div>
