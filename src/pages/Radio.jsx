@@ -34,17 +34,11 @@ const CFG = {
   ADS_MIN: 3,
   ADS_MAX: 4,
 
-  // How many voice lines a break gets. Weights, not a fixed pattern.
-  BREAK_ONE: 0.50,        // half the breaks are a single line
-  BREAK_TWO: 0.38,        // most of the rest are two
-  // whatever's left is three
-
-  // Relative likelihood of each KIND being picked for a break.
-  // Which ones appear, and in what order, is drawn fresh every time.
-  W_OUTRO: 3,             // "that was ..."
-  W_FILLER: 1,            // quote / question / rib
-  W_STATION: 4,           // station ID
-  W_INTRO: 4,             // "here's ..." 
+  // Break composition. Each piece rolls on its own, so no two breaks match.
+  P_BREAK_OUTRO: 0.55,    // outro of the song that just ended
+  P_BREAK_DROP: 0.50,     // DJ drop before the ads
+  P_BREAK_TAIL: 0.75,     // station ID or DJ drop coming out of the ads
+  P_MID_LINE: 0.12,       // chance of an intro/outro landing mid-set
 
   XFADE: 2.0,
   XFADE_VOICE: 0.6,
@@ -208,16 +202,61 @@ export default function Radio() {
     return null;
   }, [lib]);
 
+  // Between shows: the window from one show's end to the next one's start.
+  const findGap = useCallback((t) => {
+    if (!lib?.shows?.length) return null;
+    const m = t.getHours() * 60 + t.getMinutes() + t.getSeconds() / 60;
+    const spans = lib.shows.map((s) => ({ a: toMin(s.start), b: toMin(s.end) }));
+    for (let i = 0; i < spans.length; i++) {
+      const end = spans[i].b;
+      const next = spans[(i + 1) % spans.length].a;
+      const gapEnd = next <= end ? next + 1440 : next;
+      if (m >= end && m < gapEnd) return { show: null, start: end, end: gapEnd, wrap: false, gap: true };
+      if (m + 1440 >= end && m + 1440 < gapEnd)
+        return { show: null, start: end - 1440, end: gapEnd - 1440, wrap: false, gap: true };
+    }
+    return null;
+  }, [lib]);
+
   /* ---------- running order ---------- */
   const build = useCallback(async (t) => {
+    if (!lib) return { items: [], blk: null };
+
+    const put = (list, o, dur, at, endSec, xfade) => {
+      if (!dur || at + dur > endSec) return null;
+      list.push({ ...o, at, dur });
+      return at + dur - (xfade || 0);
+    };
+
+    // ---------- between shows: ads only ----------
+    const gap = findBlock(t) ? null : findGap(t);
+    if (gap) {
+      const rnd = mulberry32(seed(`${t.toISOString().slice(0, 10)}|gap|${gap.start}`));
+      const adQ = shuffled(lib.ads, rnd);
+      if (!adQ.length) return { items: [], blk: gap, empty: true };
+
+      await Promise.all([...new Set(adQ.map((a) => a.url))].map(probe));
+
+      const items = [];
+      let at = gap.start * 60;
+      const endSec = gap.end * 60;
+      let i = 0, guard = 0;
+      while (at < endSec && guard++ < 200) {
+        const ad = adQ[i++ % adQ.length];
+        const next = put(items, { kind: "ad", title: ad.sponsor || "Advertisement", artist: "", url: ad.url },
+          durCache.get(ad.url), at, endSec, 0);
+        if (next === null) break;
+        at = next;
+      }
+      return { items, blk: gap };
+    }
+
+    // ---------- inside a show ----------
     const blk = findBlock(t);
-    if (!blk || !lib) return { items: [], blk };
+    if (!blk) return { items: [], blk: null };
 
     const rnd = mulberry32(seed(`${t.toISOString().slice(0, 10)}|${blk.show.id}`));
-    // Only songs that existed before this block began. Two listeners who
-    // fetched the library at different moments still build the same running
-    // order; anything added mid-block joins at the next show, automatically
-    // and with no redeploy.
+
     const dayStart = new Date(t);
     dayStart.setHours(0, 0, 0, 0);
     const blockStartMs = dayStart.getTime() + blk.start * 60000;
@@ -226,140 +265,103 @@ export default function Radio() {
     const settled = tagged.filter(
       (s) => !s.created || new Date(s.created).getTime() + tzShift() < blockStartMs
     );
-    const pool = settled.length ? settled : tagged;   // brand-new station: use everything
-    setPool(pool.length);
-    if (!pool.length) return { items: [], blk, empty: true };
+    const poolAll = settled.length ? settled : tagged;
+    setPool(poolAll.length);
+    if (!poolAll.length) return { items: [], blk, empty: true };
 
-    const showDrops = lib.drops.filter((d) => !d.shows.length || d.shows.includes(blk.show.id));
-    const voice = showDrops.length ? showDrops : lib.drops;
+    const forShow = (d) => !d.shows.length || d.shows.includes(blk.show.id);
+    const isID = (d) => /station/i.test(d.type || "");
+    const djQ = shuffled(lib.drops.filter((d) => forShow(d) && !isID(d)), rnd);
+    const idQ = shuffled(lib.drops.filter((d) => forShow(d) && isID(d)), rnd);
+    const adQ = shuffled(lib.ads, rnd);
 
-    // A fresh shuffle each time the pool is exhausted, and never the same
-    // track either side of a pass boundary — so nothing repeats until
-    // everything has played, and the order differs on every pass.
-    let bag = [];
-    let lastPlayed = null;
-    const nextSong = (playable) => {
+    await Promise.all(
+      [...new Set([...poolAll, ...djQ, ...idQ, ...adQ].map((x) => x.url))].map(probe)
+    );
+
+    const playable = poolAll.filter((s) => durCache.get(s.url) > 0);
+    setBadCount(poolAll.length - playable.length);
+    if (!playable.length) return { items: [], blk, empty: true };
+
+    let bag = [], lastPlayed = null;
+    const nextSong = () => {
       if (!bag.length) {
         bag = shuffled(playable, rnd);
         if (bag.length > 1 && lastPlayed && bag[0].url === lastPlayed) {
-          const swap = 1 + Math.floor(rnd() * (bag.length - 1));
-          [bag[0], bag[swap]] = [bag[swap], bag[0]];
+          const j = 1 + Math.floor(rnd() * (bag.length - 1));
+          [bag[0], bag[j]] = [bag[j], bag[0]];
         }
       }
       const s = bag.shift();
       lastPlayed = s.url;
       return s;
     };
+    const pick = (a) => (a && a.length ? a[Math.floor(rnd() * a.length)] : null);
 
-    const dropQ = shuffled(voice, rnd);
-    const adQ = shuffled(lib.ads, rnd);
-
-    await Promise.all(
-      [...new Set([...pool, ...dropQ, ...adQ].map((x) => x.url))].map(probe)
-    );
-    const playable = pool.filter((s) => durCache.get(s.url) > 0);
-    setBadCount(pool.length - playable.length);
-    if (!playable.length) return { items: [], blk, empty: true };
-
-    const startSec = blk.start * 60, endSec = blk.end * 60;
-    let at = startSec, di = 0, ai = 0;
     const items = [];
+    let at = blk.start * 60;
+    const endSec = blk.end * 60;
 
-    const put = (o, xfade) => {
-      const dur = durCache.get(o.url) || 0;
-      if (!dur) return true;              // drop/ad that wouldn't load — skip it
-      if (at + dur > endSec) return false;
-      items.push({ ...o, at, dur });
-      at += dur - (xfade || 0);
+    const place = (o, xfade) => {
+      const next = put(items, o, durCache.get(o.url), at, endSec, xfade);
+      if (next === null) return false;
+      at = next;
       return true;
     };
-    const roll = (p) => rnd() < p;
-    const nextDrop = () => (dropQ.length ? dropQ[di++ % dropQ.length] : null);
+    const voice = (url) =>
+      url ? place({ kind: "voice", title: "HYPERSYNC RADIO", artist: "", url }, CFG.XFADE_VOICE) : false;
+    const song = (s) =>
+      place({ kind: "song", title: s.title, artist: s.artist, url: s.url }, CFG.XFADE);
 
-    const drawSet = () => {
+    let di = 0, ii = 0, ai = 0;
+    const nextDJ = () => (djQ.length ? djQ[di++ % djQ.length].url : null);
+    const nextID = () => (idQ.length ? idQ[ii++ % idQ.length].url : null);
+
+    // the show opens with the DJ
+    voice(nextDJ());
+
+    let pending = null, guard = 0;
+    outer: while (at < endSec && guard++ < 400) {
       const n = CFG.SONGS_MIN + Math.floor(rnd() * (CFG.SONGS_MAX - CFG.SONGS_MIN + 1));
-      return Array.from({ length: n }, () => nextSong(playable));
-    };
-    const pick = (arr) => (arr && arr.length ? arr[Math.floor(rnd() * arr.length)] : null);
-
-    let pending = null;
-    let guard = 0;
-
-    outer: while (at < endSec && guard++ < 800) {
-      const set = pending || drawSet();
+      const set = pending || Array.from({ length: n }, nextSong);
       pending = null;
 
-      for (const s of set) {
-        if (!put({ kind: "song", title: s.title, artist: s.artist, url: s.url }, CFG.XFADE))
-          break outer;
-      }
-      const justPlayed = set[set.length - 1];
-
-      // know what's coming, so the DJ can introduce it
-      pending = drawSet();
-      const comingUp = pending[0];
-
-      // Every break is drawn fresh: how many lines, which kinds, what order.
-      // No fixed intro/filler/ID/outro sequence — sometimes it's just a
-      // station ID, sometimes an outro then a rib, sometimes only an intro.
-      const roll = rnd();
-      const want = roll < CFG.BREAK_ONE ? 1 : roll < CFG.BREAK_ONE + CFG.BREAK_TWO ? 2 : 3;
-
-      const outroUrl = pick(justPlayed.outros);
-      const introUrl = pick(comingUp.intros);
-      const aDrop = () => (dropQ.length ? dropQ[di++ % dropQ.length].url : null);
-
-      const menu = [];
-      if (outroUrl) menu.push({ kind: "outro", w: CFG.W_OUTRO, url: outroUrl });
-      if (dropQ.length) menu.push({ kind: "filler", w: CFG.W_FILLER });
-      if (dropQ.length) menu.push({ kind: "station", w: CFG.W_STATION });
-      if (introUrl) menu.push({ kind: "intro", w: CFG.W_INTRO, url: introUrl });
-
-      // weighted draw without replacement
-      const chosen = [];
-      const left = menu.slice();
-      while (chosen.length < want && left.length) {
-        let total = left.reduce((s, x) => s + x.w, 0);
-        let t = rnd() * total;
-        let idx = 0;
-        for (; idx < left.length; idx++) {
-          t -= left[idx].w;
-          if (t <= 0) break;
+      for (let k = 0; k < set.length; k++) {
+        if (!song(set[k])) break outer;
+        // now and then the DJ pops up mid-set
+        if (k < set.length - 1 && rnd() < CFG.P_MID_LINE) {
+          const url = rnd() < 0.5 ? pick(set[k].outros) : pick(set[k + 1].intros);
+          voice(url);
         }
-        chosen.push(left.splice(Math.min(idx, left.length - 1), 1)[0]);
       }
 
-      // An outro refers to the song that just ended, so it sits before the
-      // ads. An intro refers to what's next, so it sits after. Fillers and
-      // station IDs land on either side, at random.
-      const before = [], after = [];
-      for (const c of chosen) {
-        const url = c.url || aDrop();
-        if (!url) continue;
-        if (c.kind === "outro") before.push(url);
-        else if (c.kind === "intro") after.push(url);
-        else (rnd() < 0.5 ? before : after).push(url);
-      }
+      const justPlayed = set[set.length - 1];
+      pending = Array.from({ length: CFG.SONGS_MIN }, nextSong);
 
-      const say = (url) =>
-        put({ kind: "voice", title: "HYPERSYNC RADIO", artist: "", url }, CFG.XFADE_VOICE);
+      // ---- break ----
+      if (rnd() < CFG.P_BREAK_OUTRO) voice(pick(justPlayed.outros));
 
-      for (const url of before) if (!say(url)) break outer;
+      let beforeType = null;
+      if (rnd() < CFG.P_BREAK_DROP && voice(nextDJ())) beforeType = "dj";
 
       if (adQ.length) {
         const k = CFG.ADS_MIN + Math.floor(rnd() * (CFG.ADS_MAX - CFG.ADS_MIN + 1));
         for (let j = 0; j < k; j++) {
           const ad = adQ[ai++ % adQ.length];
-          if (!put({ kind: "ad", title: ad.sponsor || "Advertisement", artist: "", url: ad.url }, 0))
+          if (!place({ kind: "ad", title: ad.sponsor || "Advertisement", artist: "", url: ad.url }, 0))
             break outer;
         }
       }
 
-      for (const url of after) if (!say(url)) break outer;
+      // coming out of the ads — never the same kind as went in
+      if (rnd() < CFG.P_BREAK_TAIL) {
+        const url = beforeType === "dj" ? nextID() : (nextID() || nextDJ());
+        voice(url);
+      }
     }
 
     return { items, blk };
-  }, [lib, findBlock]);
+  }, [lib, findBlock, findGap]);
 
   const locate = useCallback((t, items, blk) => {
     let sec = t.getHours() * 3600 + t.getMinutes() * 60 + t.getSeconds();
@@ -535,6 +537,9 @@ export default function Radio() {
   const t = nowManila();
   const shows = lib?.shows || [];
   const art = block?.show?.art || "";
+  const showLabel = block
+    ? (block.show ? block.show.name.toUpperCase() : "STATION BREAK")
+    : "BETWEEN SHOWS";
   const onAir = live && nowItem && nowItem.kind !== "break";
 
   return (
@@ -563,7 +568,7 @@ export default function Radio() {
           : nowItem?.kind === "break" ? "STATION BREAK"
           : "ON AIR"}
         <span className="rw-showname">
-          {block ? block.show.name.toUpperCase() : "BETWEEN SHOWS"}
+          {showLabel}
         </span>
       </div>
 
@@ -623,7 +628,7 @@ export default function Radio() {
       {listOpen && (
         <div className="rw-sched">
           {shows.map((s) => {
-            const on = block && block.show.id === s.id;
+            const on = block?.show && block.show.id === s.id;
             return (
               <div key={s.id} className={on ? "rw-row on" : "rw-row"}>
                 <div className="rw-thumb">

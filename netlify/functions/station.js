@@ -132,13 +132,19 @@ export default async (req) => {
 
     // "Intro URL" / "Outro URL" on SONGS. Several URLs separated by commas
     // gives the player variants to choose between.
+    // Attachment cells can hold several files — each is a variant the player
+    // can choose between. Comma-separated URLs work too.
     const urlList = (fields, names) => {
+      const out = [];
       for (const n of names) {
         const v = fields[n];
-        if (typeof v === "string" && v.trim())
-          return v.split(",").map((x) => x.trim()).filter(Boolean);
+        if (Array.isArray(v)) {
+          for (const a of v) if (a && a.url) out.push(a.url);
+        } else if (typeof v === "string" && v.trim()) {
+          out.push(...v.split(",").map((x) => x.trim()).filter(Boolean));
+        }
       }
-      return [];
+      return out;
     };
 
     const songs = songRecs
@@ -150,8 +156,8 @@ export default async (req) => {
         shows: linkedShows(r.fields),
         active: r.fields.Played !== false,
         created: r.createdTime,   // lets new songs join at the next show boundary
-        intros: urlList(r.fields, ["Intro URL", "Intro", "INTRO", "Intro Url"]),
-        outros: urlList(r.fields, ["Outro URL", "Outro", "OUTRO", "Outro Url"]),
+        intros: urlList(r.fields, ["Intro Audio", "Intro URL", "Intro"]),
+        outros: urlList(r.fields, ["Outro Audio", "Outro URL", "Outro"]),
       }))
       .filter((s) => s.url && s.active);
 
