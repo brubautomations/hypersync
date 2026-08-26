@@ -118,6 +118,18 @@ export default async (req) => {
       return [];
     };
 
+    // Audio can come from an Airtable attachment or a plain URL field.
+    // Attachment links are regenerated on every API call, so they're always
+    // fresh by the time the player uses them.
+    const audioOf = (fields, names) => {
+      for (const n of names) {
+        const v = fields[n];
+        if (Array.isArray(v) && v[0] && v[0].url) return v[0].url;
+        if (typeof v === "string" && v.trim()) return v.trim();
+      }
+      return "";
+    };
+
     // "Intro URL" / "Outro URL" on SONGS. Several URLs separated by commas
     // gives the player variants to choose between.
     const urlList = (fields, names) => {
@@ -134,7 +146,7 @@ export default async (req) => {
         id: r.id,
         title: r.fields.Title || "",
         artist: r.fields.Artist || "",
-        url: r.fields["File URL"] || "",
+        url: audioOf(r.fields, ["File URL", "Audio", "File", "Attachment"]),
         shows: linkedShows(r.fields),
         active: r.fields.Played !== false,
         created: r.createdTime,   // lets new songs join at the next show boundary
@@ -146,7 +158,7 @@ export default async (req) => {
     const drops = dropRecs
       .map((r) => ({
         id: r.id,
-        url: r.fields["File URL"] || "",
+        url: audioOf(r.fields, ["File URL", "Audio", "File", "Attachment"]),
         type: r.fields.Type || "Station ID",
         shows: linkedShows(r.fields),
       }))
@@ -155,7 +167,7 @@ export default async (req) => {
     const ads = adRecs
       .map((r) => ({
         id: r.id,
-        url: r.fields["File URL"] || "",
+        url: audioOf(r.fields, ["File URL", "Audio", "File", "Attachment"]),
         sponsor: r.fields.Sponsor || "",
         active: r.fields.Active !== false,
       }))
