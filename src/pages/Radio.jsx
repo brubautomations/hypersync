@@ -38,7 +38,10 @@ const CFG = {
   P_BREAK_OUTRO: 0.55,    // outro of the song that just ended
   P_BREAK_DROP: 0.50,     // DJ drop before the ads
   P_BREAK_TAIL: 0.75,     // station ID or DJ drop coming out of the ads
+  P_BREAK_INTRO: 0.55,    // intro into the first song after the break
   P_MID_LINE: 0.12,       // chance of an intro/outro landing mid-set
+
+  TALKOVER: 6.0,          // seconds an outro rides over the song's tail
 
   XFADE: 2.0,
   XFADE_VOICE: 0.6,
@@ -222,9 +225,11 @@ export default function Radio() {
   const build = useCallback(async (t) => {
     if (!lib) return { items: [], blk: null };
 
+    // xf is how much the NEXT item overlaps this one — the player reads it
+    // back so the audio crossfade matches the timeline exactly.
     const put = (list, o, dur, at, endSec, xfade) => {
       if (!dur || at + dur > endSec) return null;
-      list.push({ ...o, at, dur });
+      list.push({ ...o, at, dur, xf: xfade || 0 });
       return at + dur - (xfade || 0);
     };
 
@@ -308,10 +313,12 @@ export default function Radio() {
       at = next;
       return true;
     };
+    // Voice lines run clean — nothing overlaps them on the way out.
     const voice = (url) =>
-      url ? place({ kind: "voice", title: "HYPERSYNC RADIO", artist: "", url }, CFG.XFADE_VOICE) : false;
-    const song = (s) =>
-      place({ kind: "song", title: s.title, artist: s.artist, url: s.url }, CFG.XFADE);
+      url ? place({ kind: "voice", title: "HYPERSYNC RADIO", artist: "", url }, 0) : false;
+    const song = (s, xf) =>
+      place({ kind: "song", title: s.title, artist: s.artist, url: s.url },
+        xf === undefined ? CFG.XFADE : xf);
 
     let di = 0, ii = 0, ai = 0;
     const nextDJ = () => (djQ.length ? djQ[di++ % djQ.length].url : null);
@@ -327,19 +334,28 @@ export default function Radio() {
       pending = null;
 
       for (let k = 0; k < set.length; k++) {
-        if (!song(set[k])) break outer;
-        // now and then the DJ pops up mid-set
-        if (k < set.length - 1 && rnd() < CFG.P_MID_LINE) {
-          const url = rnd() < 0.5 ? pick(set[k].outros) : pick(set[k + 1].intros);
-          voice(url);
+        const last = k === set.length - 1;
+
+        // Decide what follows this song BEFORE placing it — an outro has to
+        // ride over the song's tail, so the song needs the longer overlap.
+        let mid = null, midIsOutro = false;
+        if (!last && rnd() < CFG.P_MID_LINE) {
+          midIsOutro = rnd() < 0.5;
+          mid = midIsOutro ? pick(set[k].outros) : pick(set[k + 1].intros);
         }
+        const breakOutro = last && rnd() < CFG.P_BREAK_OUTRO ? pick(set[k].outros) : null;
+
+        const talkedOver = breakOutro || (mid && midIsOutro);
+        if (!song(set[k], talkedOver ? CFG.TALKOVER : CFG.XFADE)) break outer;
+
+        if (mid) voice(mid);
+        if (breakOutro) voice(breakOutro);
       }
 
-      const justPlayed = set[set.length - 1];
-      pending = Array.from({ length: CFG.SONGS_MIN }, nextSong);
+      const setLen = CFG.SONGS_MIN + Math.floor(rnd() * (CFG.SONGS_MAX - CFG.SONGS_MIN + 1));
+      pending = Array.from({ length: setLen }, nextSong);
 
       // ---- break ----
-      if (rnd() < CFG.P_BREAK_OUTRO) voice(pick(justPlayed.outros));
 
       let beforeType = null;
       if (rnd() < CFG.P_BREAK_DROP && voice(nextDJ())) beforeType = "dj";
@@ -358,6 +374,9 @@ export default function Radio() {
         const url = beforeType === "dj" ? nextID() : (nextID() || nextDJ());
         voice(url);
       }
+
+      // …then hand off to the song that's about to start
+      if (rnd() < CFG.P_BREAK_INTRO) voice(pick(pending[0].intros));
     }
 
     return { items, blk };
@@ -398,7 +417,7 @@ export default function Radio() {
     clearTimeout(timer.current);
     const nextIt = items[i + 1];
     if (nextIt) {
-      const ov = nextIt.kind === "voice" || it.kind === "voice" ? CFG.XFADE_VOICE : CFG.XFADE;
+      const ov = it.xf || 0;
       timer.current = setTimeout(() => handoff(i + 1, ov),
         Math.max(200, (it.dur - cur.currentTime - ov) * 1000));
     } else {
@@ -416,13 +435,19 @@ export default function Radio() {
     inc.volume = it.kind === "voice" ? vol : 0;
     inc.play().catch(() => {});
 
-    const steps = 20; let s = 0;
+    if (!overlap) {
+      out.pause();
+      inc.volume = vol;
+    }
+    const steps = overlap ? 20 : 0;
+    let s = 0;
     const fade = setInterval(() => {
       s++; const k = s / steps;
       out.volume = it.kind === "voice" ? vol * (1 - k * (1 - CFG.DUCK)) : vol * (1 - k);
       if (it.kind !== "voice") inc.volume = vol * k;
       if (s >= steps) { clearInterval(fade); out.pause(); inc.volume = vol; }
-    }, (overlap * 1000) / steps);
+    }, steps ? (overlap * 1000) / steps : 1000000);
+    if (!steps) clearInterval(fade);
 
     active.current = 1 - active.current;
     setNowItem(it);
@@ -430,7 +455,7 @@ export default function Radio() {
     clearTimeout(timer.current);
     const nextIt = items[i + 1];
     if (nextIt) {
-      const ov = nextIt.kind === "voice" || it.kind === "voice" ? CFG.XFADE_VOICE : CFG.XFADE;
+      const ov = it.xf || 0;
       timer.current = setTimeout(() => handoff(i + 1, ov), Math.max(200, (it.dur - ov) * 1000));
     } else {
       timer.current = setTimeout(() => resync(), Math.max(500, it.dur * 1000));
