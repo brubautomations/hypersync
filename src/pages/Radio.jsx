@@ -31,8 +31,9 @@ const CFG = {
 
   SONGS_MIN: 4,
   SONGS_MAX: 5,
-  ADS_MIN: 3,
-  ADS_MAX: 4,
+  ADS_MAX: 4,             // most spots in one in-show break
+  BREAK_ADS_MIN: 75,      // in-show stopset length, seconds
+  BREAK_ADS_MAX: 150,     // anything longer than this is left for the gaps
 
   // Break composition. Each piece rolls on its own, so no two breaks match.
   P_BREAK_OUTRO: 0.55,    // outro of the song that just ended
@@ -360,12 +361,22 @@ export default function Radio() {
       let beforeType = null;
       if (rnd() < CFG.P_BREAK_DROP && voice(nextDJ())) beforeType = "dj";
 
+      // Stopsets are capped by TIME, not by a count. Spots of mixed length
+      // sort themselves out, and anything too long to fit — like a 3-minute
+      // spot — is passed over here and lands in the between-shows gap instead.
       if (adQ.length) {
-        const k = CFG.ADS_MIN + Math.floor(rnd() * (CFG.ADS_MAX - CFG.ADS_MIN + 1));
-        for (let j = 0; j < k; j++) {
+        const budget =
+          CFG.BREAK_ADS_MIN + rnd() * (CFG.BREAK_ADS_MAX - CFG.BREAK_ADS_MIN);
+        let spent = 0, played = 0, tried = 0;
+        while (spent < budget && played < CFG.ADS_MAX && tried < adQ.length * 2) {
           const ad = adQ[ai++ % adQ.length];
+          tried++;
+          const d = durCache.get(ad.url) || 0;
+          if (!d || spent + d > budget) continue;   // doesn't fit — skip it
           if (!place({ kind: "ad", title: ad.sponsor || "Advertisement", artist: "", url: ad.url }, 0))
             break outer;
+          spent += d;
+          played++;
         }
       }
 
