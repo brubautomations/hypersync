@@ -18,6 +18,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
    animated bars.
    ============================================================ */
 
+// 100ms of silence. iOS only lets an <audio> element play if that exact
+// element was started inside a real tap, so on TUNE IN we play this through
+// every deck to unlock them. Without it the first song plays and the
+// crossfade to the second deck gets refused.
+const SILENCE = "data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
+
 const CFG = {
   API: "/api/station",
   LOGO: "/radio-logo.png",
@@ -377,7 +383,13 @@ export default function Radio() {
     setAudioErr("");
     cur.onerror = () =>
       setAudioErr("That file wouldn't load: " + decodeURIComponent(it.url.split("/").pop()));
-    cur.play().catch((e) => setAudioErr("Playback blocked: " + (e?.message || e)));
+    cur.play().catch((e) =>
+      setAudioErr(
+        e?.name === "NotAllowedError"
+          ? "Tap TUNE IN again to start audio."
+          : "Playback blocked: " + (e?.message || e)
+      )
+    );
     nxt.pause();
     setNowItem(it);
 
@@ -456,6 +468,21 @@ export default function Radio() {
     return () => clearInterval(id);
   }, []);
 
+  const unlockDecks = async () => {
+    await Promise.all(
+      deck.current.map(async (a) => {
+        try {
+          a.src = SILENCE;
+          a.muted = true;
+          await a.play();
+          a.pause();
+          a.currentTime = 0;
+        } catch { /* ignore — we try again on the next tap */ }
+        a.muted = false;
+      })
+    );
+  };
+
   const toggle = async () => {
     if (live) {
       setLive(false);
@@ -464,6 +491,7 @@ export default function Radio() {
       setNowItem(null);
       return;
     }
+    await unlockDecks();          // must happen inside the tap, before anything async
     setLive(true);
     const t = nowManila();
     const { items, blk, empty: none } = await build(t);
