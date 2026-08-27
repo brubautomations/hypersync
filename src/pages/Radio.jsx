@@ -273,7 +273,7 @@ export default function Radio() {
     if (gap) {
       const rnd = mulberry32(seed(`${t.toISOString().slice(0, 10)}|gap|${gap.start}`));
       const adQ = shuffled(lib.ads, rnd);
-      if (!adQ.length) return { items: [], blk: gap, empty: true };
+      if (!adQ.length) return { items: [], blk: gap, empty: true, forShowId: null };
 
       await probeAll(adQ);
 
@@ -286,12 +286,25 @@ export default function Radio() {
         at = put(items, { kind: "ad", title: ad.sponsor || "Advertisement", artist: "", url: ad.url },
           durCache.get(ad.url) || CFG.DEFAULT_DUR, at, endSec, 0);
       }
-      return { items, blk: gap };
+      return { items, blk: gap, forShowId: null };
     }
 
     // ---------- inside a show ----------
-    const blk = findBlock(t);
-    if (!blk) return { items: [], blk: null };
+    let blk = findBlock(t);
+    if (!blk && lib.shows.length) {
+      // Belt and braces: with a loaded schedule the station should never be
+      // "between shows" with nothing to play. Fall back to whichever show
+      // started most recently.
+      const m = t.getHours() * 60 + t.getMinutes();
+      let best = null, bestGap = Infinity;
+      for (const s of lib.shows) {
+        const a = toMin(s.start);
+        const behind = (m - a + 1440) % 1440;
+        if (behind < bestGap) { bestGap = behind; best = s; }
+      }
+      if (best) blk = { show: best, start: toMin(best.start), end: toMin(best.start) + 1440, wrap: false };
+    }
+    if (!blk) return { items: [], blk: null, forShowId: null };
 
     const rnd = mulberry32(seed(`${t.toISOString().slice(0, 10)}|${blk.show.id}`));
 
