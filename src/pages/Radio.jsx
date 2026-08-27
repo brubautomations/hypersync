@@ -165,6 +165,7 @@ export default function Radio() {
   const line = useRef([]);
   const timer = useRef(null);
   const handing = useRef(false);
+  const preload = useRef(null);
 
   useEffect(() => { document.title = "HYPERSYNC RADIO"; }, []);
 
@@ -423,33 +424,56 @@ export default function Radio() {
     handing.current = false;
 
     const cur = deck.current[active.current];
-    const nxt = deck.current[1 - active.current];
 
-    cur.pause();
     cur.ontimeupdate = null;
     cur.onended = null;
-    cur.src = it.url;
-    cur.volume = vol;
-    try { cur.currentTime = Math.max(0, offset || 0); } catch { /* set on load */ }
-
     setAudioErr("");
     cur.onerror = () =>
       setAudioErr("That file wouldn't load: " + decodeURIComponent(it.url.split("/").pop()));
-    cur.play().catch((e) =>
-      setAudioErr(
-        e?.name === "NotAllowedError"
-          ? "Tap TUNE IN again to start audio."
-          : "Playback blocked: " + (e?.message || e)
-      )
-    );
+
+    // handoff() has already started this deck and is fading it in — don't
+    // touch the source or the volume, or we'd restart it and kill the fade.
+    const alreadyRunning = cur.src === it.url && !cur.paused;
+
+    if (!alreadyRunning) {
+      cur.pause();
+      cur.src = it.url;
+      cur.volume = vol;
+
+      const seek = Math.max(0, offset || 0);
+      if (seek > 0) {
+        // currentTime can't be set until the file reports its length
+        const onMeta = () => {
+          try { cur.currentTime = Math.min(seek, (cur.duration || seek) - 0.5); } catch { /* ignore */ }
+          cur.removeEventListener("loadedmetadata", onMeta);
+        };
+        cur.addEventListener("loadedmetadata", onMeta);
+      }
+
+      cur.play().catch((e) =>
+        setAudioErr(
+          e?.name === "NotAllowedError"
+            ? "Tap TUNE IN again to start audio."
+            : "Playback blocked: " + (e?.message || e)
+        )
+      );
+    }
+
     setNowItem(it);
 
-    // get the next file buffering now, not when it's due
+    // Get the next file buffering ahead of time — but not immediately: right
+    // after a handoff the idle deck is still fading the previous item out,
+    // and touching its source would cut that short.
+    clearTimeout(preload.current);
     const nx = items[i + 1];
     if (nx) {
-      nxt.pause();
-      nxt.src = nx.url;
-      try { nxt.load(); } catch { /* ignore */ }
+      preload.current = setTimeout(() => {
+        const idle = deck.current[1 - active.current];
+        if (!idle || !idle.paused) return;      // still fading — leave it alone
+        if (idle.src === nx.url) return;
+        idle.src = nx.url;
+        try { idle.load(); } catch { /* ignore */ }
+      }, 4000);
     }
 
     // arm the crossfade off the real remaining time
@@ -570,7 +594,7 @@ export default function Radio() {
     else timer.current = setTimeout(rollOver, 5000);
   };
 
-  useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(() => () => { clearTimeout(timer.current); clearTimeout(preload.current); }, []);
 
   /* ---------- watchdog ----------
      Only looks for genuinely stuck audio — a dead element, or a playhead
