@@ -319,6 +319,23 @@ export default function Radio() {
         at = put(items, { kind: "ad", title: ad.sponsor || "Advertisement", artist: "", url: ad.url },
           durCache.get(ad.url) || CFG.DEFAULT_DUR, at, endSec, 0);
       }
+      // Sign off the break with a station ID for the show that's ABOUT to
+      // start — it announces what's coming rather than what just finished.
+      const nextStart = ((gap.end % 1440) + 1440) % 1440;
+      const incoming = lib.shows.find((s) => toMin(s.start) === nextStart);
+      if (incoming) {
+        const ids = lib.drops.filter(
+          (d) => /station/i.test(d.type || "") &&
+                 (!d.shows.length || d.shows.includes(incoming.id))
+        );
+        if (ids.length) {
+          const id = shuffled(ids, rnd)[0];
+          await probe(id);
+          put(items, { kind: "voice", title: "HYPERSYNC RADIO", artist: "", url: id.url },
+            durCache.get(id.url) || 10, at, endSec, 0);
+        }
+      }
+
       return { items, blk: gap, forShowId: null };
     }
 
