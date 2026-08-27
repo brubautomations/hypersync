@@ -525,6 +525,51 @@ export default function Radio() {
 
   const resync = rollOver;
 
+  // iOS only lets an <audio> element play if that exact element was started
+  // inside a real tap, so both decks get a moment of silence on TUNE IN.
+  const unlockDecks = async () => {
+    await Promise.all(
+      deck.current.map(async (a) => {
+        try {
+          a.src = SILENCE;
+          a.muted = true;
+          await a.play();
+          a.pause();
+          a.currentTime = 0;
+        } catch { /* try again on the next tap */ }
+        a.muted = false;
+      })
+    );
+  };
+
+  const toggle = async () => {
+    if (live) {
+      setLive(false);
+      clearTimeout(timer.current);
+      handing.current = false;
+      deck.current.forEach((a) => {
+        a.pause();
+        a.ontimeupdate = null;
+        a.onended = null;
+      });
+      setNowItem(null);
+      return;
+    }
+
+    await unlockDecks();          // inside the tap, before anything async
+    setLive(true);
+
+    const t = nowManila();
+    const { items, blk, empty: none } = await build(t);
+    line.current = items;
+    setBlock(blk);
+    setEmpty(!!none);
+
+    const spot = locate(t, items, blk);
+    if (spot) startItem(spot.i, spot.off);
+    else timer.current = setTimeout(rollOver, 5000);
+  };
+
   useEffect(() => () => clearTimeout(timer.current), []);
 
   /* ---------- watchdog ----------
