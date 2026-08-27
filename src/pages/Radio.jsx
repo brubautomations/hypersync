@@ -166,6 +166,7 @@ export default function Radio() {
   const timer = useRef(null);
   const handing = useRef(false);
   const preload = useRef(null);
+  const liveRef = useRef(false);
 
   useEffect(() => { document.title = "HYPERSYNC RADIO"; }, []);
 
@@ -477,16 +478,20 @@ export default function Radio() {
     }
 
     // arm the crossfade off the real remaining time
-    cur.ontimeupdate = () => {
-      if (handing.current) return;
-      const d = cur.duration;
-      if (!d || !isFinite(d)) return;
-      const ov = Math.max(CFG.XFADE_MIN, Math.min(it.xf || 0, d / 3));
-      if (d - cur.currentTime <= ov) {
-        handing.current = true;
-        handoff(i + 1, ov);
-      }
-    };
+    // Songs crossfade into what's next. Voice and ads never do — they play to
+    // the last syllable and the next item starts after, so nothing is clipped.
+    if (it.kind === "song") {
+      cur.ontimeupdate = () => {
+        if (handing.current) return;
+        const d = cur.duration;
+        if (!d || !isFinite(d)) return;
+        const ov = Math.max(CFG.XFADE_MIN, Math.min(it.xf || 0, d / 3));
+        if (d - cur.currentTime <= ov) {
+          handing.current = true;
+          handoff(i + 1, ov);
+        }
+      };
+    }
     cur.onended = () => {
       if (handing.current) return;
       handing.current = true;
@@ -507,7 +512,9 @@ export default function Radio() {
     inc.volume = it.kind === "voice" ? vol : 0;
     inc.play().catch(() => {});
 
-    const ms = Math.max(200, overlap * 1000);
+    // overlap 0 means the previous item already finished — fade the new one
+    // in quickly so it doesn't pop, but don't hold anything back.
+    const ms = overlap > 0 ? overlap * 1000 : 400;
     const steps = 20;
     let s = 0;
     const fade = setInterval(() => {
@@ -536,7 +543,7 @@ export default function Radio() {
     line.current = items;
     setBlock(blk);
     setEmpty(!!none);
-    if (!live) return;
+    if (!liveRef.current) return;
     const spot = locate(t, items, blk);
     if (spot) startItem(spot.i, spot.off);
     else {
@@ -545,7 +552,7 @@ export default function Radio() {
       clearTimeout(timer.current);
       timer.current = setTimeout(rollOver, 15000);
     }
-  }, [build, locate, live, startItem]);
+  }, [build, locate, startItem]);
 
   const resync = rollOver;
 
@@ -568,6 +575,7 @@ export default function Radio() {
 
   const toggle = async () => {
     if (live) {
+      liveRef.current = false;
       setLive(false);
       clearTimeout(timer.current);
       handing.current = false;
@@ -581,6 +589,7 @@ export default function Radio() {
     }
 
     await unlockDecks();          // inside the tap, before anything async
+    liveRef.current = true;
     setLive(true);
 
     const t = nowManila();
@@ -607,6 +616,7 @@ export default function Radio() {
       const a = deck.current[active.current];
       if (!a) return;
 
+      if (!liveRef.current) return;
       const dead = a.error || (a.paused && !handing.current);
       const frozen = !a.paused && a.currentTime === last;
 
