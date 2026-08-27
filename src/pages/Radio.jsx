@@ -189,6 +189,7 @@ export default function Radio() {
   const cursor = useRef(-1);
   const handing = useRef(false);
   const preload = useRef(null);
+  const queueShow = useRef(null);
   const liveRef = useRef(false);
 
   useEffect(() => { document.title = "HYPERSYNC RADIO"; }, []);
@@ -258,9 +259,11 @@ export default function Radio() {
 
     // xf is how much the NEXT item overlaps this one — the player reads it
     // back so the audio crossfade matches the timeline exactly.
+    // Nothing is ever refused for "not fitting" — an item that runs past the
+    // hour simply finishes and the next block starts after it. `at` is only
+    // used to pick a rough starting point for someone tuning in.
     const put = (list, o, dur, at, endSec, xfade) => {
       if (!dur) dur = CFG.DEFAULT_DUR;
-      if (at + dur > endSec) return null;
       list.push({ ...o, at, dur, xf: xfade || 0 });
       return at + dur - (xfade || 0);
     };
@@ -280,10 +283,8 @@ export default function Radio() {
       let i = 0, guard = 0;
       while (at < endSec && guard++ < 200) {
         const ad = adQ[i++ % adQ.length];
-        const next = put(items, { kind: "ad", title: ad.sponsor || "Advertisement", artist: "", url: ad.url },
+        at = put(items, { kind: "ad", title: ad.sponsor || "Advertisement", artist: "", url: ad.url },
           durCache.get(ad.url) || CFG.DEFAULT_DUR, at, endSec, 0);
-        if (next === null) break;
-        at = next;
       }
       return { items, blk: gap };
     }
@@ -340,9 +341,7 @@ export default function Radio() {
     const endSec = blk.end * 60;
 
     const place = (o, xfade) => {
-      const next = put(items, o, durCache.get(o.url) || CFG.DEFAULT_DUR, at, endSec, xfade);
-      if (next === null) return false;
-      at = next;
+      at = put(items, o, durCache.get(o.url) || CFG.DEFAULT_DUR, at, endSec, xfade);
       return true;
     };
     // Voice lines run clean — nothing overlaps them on the way out.
@@ -421,7 +420,7 @@ export default function Radio() {
       if (rnd() < CFG.P_BREAK_INTRO) voice(pick(pending[0].intros));
     }
 
-    return { items, blk };
+    return { items, blk, forShowId: blk?.show?.id || null };
   }, [lib, findBlock, findGap]);
 
   const locate = useCallback((t, items, blk) => {
@@ -538,7 +537,11 @@ export default function Radio() {
   const handoff = useCallback((i, overlap) => {
     const items = line.current;
     const it = items[i];
-    if (!it) { rollOver(); return; }
+
+    // Out of items, or the show has changed while this one was playing —
+    // either way the current item has finished, so it's safe to rebuild.
+    const showNow = findBlock(nowManila())?.show?.id || null;
+    if (!it || showNow !== queueShow.current) { rollOver(); return; }
 
     const out = deck.current[active.current];
     const inc = deck.current[1 - active.current];
@@ -576,30 +579,34 @@ export default function Radio() {
 
     active.current = 1 - active.current;
     startItem(i, 0);
-  }, [vol, startItem]);
+  }, [vol, startItem, findBlock]);
 
-  // Reached the end of the built list — rebuild and drop in at the clock.
-  const rollOver = useCallback(async () => {
+  // Rebuild the order for whatever's on now. Called when the queue runs out,
+  // when the show changes, or if audio genuinely dies — never mid-item.
+  const rollOver = useCallback(async (seekToClock = false) => {
     const t = nowManila();
-    const { items, blk, empty: none } = await build(t);
+    const { items, blk, empty: none, forShowId } = await build(t);
     line.current = items;
+    queueShow.current = forShowId;
     setBlock(blk);
     setEmpty(!!none);
     if (!liveRef.current) return;
-    const spot = locate(t, items, blk);
-    if (spot) {
-      // Already playing the right thing? Leave it alone. Estimated lengths
-      // mean the clock and the audio drift apart, and restarting on every
-      // check is what makes it stutter between items.
-      const cur = deck.current[active.current];
-      const same = cur && !cur.paused && cur.src === items[spot.i].url;
-      if (!same) startItem(spot.i, spot.off);
-    } else {
+
+    if (!items.length) {
       setNowItem({ kind: "break", title: "Station break", artist: "" });
       deck.current.forEach((a) => a.pause());
       clearTimeout(timer.current);
       timer.current = setTimeout(rollOver, 15000);
+      return;
     }
+
+    // Tuning in drops you wherever the station roughly is. After that it just
+    // runs in order — the clock never interrupts anything again.
+    if (seekToClock) {
+      const spot = locate(t, items, blk);
+      if (spot) { startItem(spot.i, spot.off); return; }
+    }
+    startItem(0, 0);
   }, [build, locate, startItem]);
 
   const resync = rollOver;
@@ -641,13 +648,15 @@ export default function Radio() {
     setLive(true);
 
     const t = nowManila();
-    const { items, blk, empty: none } = await build(t);
+    const { items, blk, empty: none, forShowId } = await build(t);
     line.current = items;
     setBlock(blk);
     setEmpty(!!none);
 
+    queueShow.current = forShowId;
     const spot = locate(t, items, blk);
     if (spot) startItem(spot.i, spot.off);
+    else if (items.length) startItem(0, 0);
     else timer.current = setTimeout(rollOver, 5000);
   };
 
@@ -681,22 +690,6 @@ export default function Radio() {
     }, 2000);
     return () => clearInterval(id);
   }, [live, rollOver]);
-
-  /* Shows change on the clock, so check for a new block between items.
-     Drift inside a block is fine; it resets when the next show starts. */
-  useEffect(() => {
-    if (!live || !lib) return;
-    const id = setInterval(() => {
-      const now = findBlock(nowManila());
-      const showId = now?.show?.id || null;
-      const haveId = block?.show?.id || null;
-      if (showId === haveId) return;          // same show — nothing to do
-      const cur = deck.current[active.current];
-      if (cur && !cur.paused && cur.currentTime > 1) return;  // mid-item; catch it at the end
-      rollOver();
-    }, 20000);
-    return () => clearInterval(id);
-  }, [live, lib, block, findBlock, rollOver]);
 
   const t = nowManila();
   const shows = lib?.shows || [];
