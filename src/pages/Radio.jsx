@@ -527,6 +527,12 @@ export default function Radio() {
     const out = deck.current[active.current];
     const inc = deck.current[1 - active.current];
 
+    // Detach the outgoing deck's handlers straight away. It keeps playing
+    // through the crossfade, and if it reaches its natural end mid-fade its
+    // onended would fire a second handoff and cut what just started.
+    out.ontimeupdate = null;
+    out.onended = null;
+
     if (inc.src !== it.url) inc.src = it.url;
     try { inc.currentTime = 0; } catch { /* ignore */ }
     inc.volume = it.kind === "voice" ? vol : 0;
