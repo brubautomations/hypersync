@@ -37,9 +37,9 @@ const CFG = {
 
   // Break composition. Each piece rolls on its own, so no two breaks match.
   P_BREAK_OUTRO: 0.55,    // outro of the song that just ended
-  P_BREAK_DROP: 0.50,     // DJ drop before the ads
-  P_BREAK_TAIL: 0.75,     // station ID or DJ drop coming out of the ads
-  P_BREAK_INTRO: 0.55,    // intro into the first song after the break
+  P_BREAK_DROP: 0.85,     // DJ drop before the ads
+  P_BREAK_TAIL: 0.90,     // station ID or DJ drop coming out of the ads
+  P_BREAK_LAST: 0.45,     // one more line heading back into the music
   P_MID_LINE: 0.12,       // chance of an intro/outro landing mid-set
 
   TALKOVER: 6.0,          // seconds an outro rides over the song's tail
@@ -217,6 +217,8 @@ export default function Radio() {
   const preload = useRef(null);
   const queueShow = useRef(null);
   const rollRef = useRef(null);
+  const handoffRef = useRef(null);
+  const blockRef = useRef(null);
   const rot = useRef({ showId: null });
   const liveRef = useRef(false);
 
@@ -401,8 +403,17 @@ export default function Radio() {
       return true;
     };
     // Voice lines run clean — nothing overlaps them on the way out.
-    const voice = (url) =>
-      url ? place({ kind: "voice", title: "HYPERSYNC RADIO", artist: "", url }, 0) : false;
+    // A voice line is never followed by another of the same kind: no two DJ
+    // drops back to back, no two station IDs back to back.
+    let lastVoice = null;
+    const voice = (url, kind) => {
+      if (!url) return false;
+      const prev = items[items.length - 1];
+      if (kind && prev && prev.kind === "voice" && lastVoice === kind) return false;
+      const ok = place({ kind: "voice", title: "HYPERSYNC RADIO", artist: "", url }, 0);
+      if (ok) lastVoice = kind || null;
+      return ok;
+    };
     const song = (s, xf) =>
       place({ kind: "song", title: s.title, artist: s.artist, url: s.url },
         xf === undefined ? CFG.XFADE : xf);
@@ -412,7 +423,7 @@ export default function Radio() {
     const nextAd = () => takeFromBag(R.ad, adQ, rnd);
 
     // the show opens with the DJ
-    voice(nextDJ());
+    voice(nextDJ(), "dj");
 
     let pending = null, guard = 0;
     outer: while (at < endSec && guard++ < 400) {
@@ -445,7 +456,7 @@ export default function Radio() {
       // ---- break ----
 
       let beforeType = null;
-      if (rnd() < CFG.P_BREAK_DROP && voice(nextDJ())) beforeType = "dj";
+      if (rnd() < CFG.P_BREAK_DROP && voice(nextDJ(), "dj")) beforeType = "dj";
 
       // Stopsets are capped by TIME, not by a count. Spots of mixed length
       // sort themselves out, and anything too long to fit — like a 3-minute
@@ -464,13 +475,19 @@ export default function Radio() {
       }
 
       // coming out of the ads — never the same kind as went in
+      let tailType = null;
       if (rnd() < CFG.P_BREAK_TAIL) {
-        const url = beforeType === "dj" ? nextID() : (nextID() || nextDJ());
-        voice(url);
+        if (beforeType === "dj") { if (voice(nextID(), "id")) tailType = "id"; }
+        else if (voice(nextID(), "id")) tailType = "id";
+        else if (voice(nextDJ(), "dj")) tailType = "dj";
       }
 
-      // …then hand off to the song that's about to start
-      if (rnd() < CFG.P_BREAK_INTRO) voice(pick(pending[0].intros));
+      // …and sometimes one more heading back into the music, always the
+      // opposite kind so you never get two of the same back to back
+      if (tailType && rnd() < CFG.P_BREAK_LAST) {
+        if (tailType === "id") voice(nextDJ(), "dj");
+        else voice(nextID(), "id");
+      }
     }
 
     return { items, blk, forShowId: blk?.show?.id || null };
@@ -583,7 +600,7 @@ export default function Radio() {
     cur.onended = () => {
       if (handing.current) return;
       handing.current = true;
-      handoff(i + 1, 0);
+      handoffRef.current?.(i + 1, 0);
     };
   }, [vol]);
 
@@ -593,7 +610,7 @@ export default function Radio() {
 
     // Out of items, or the show has changed while this one was playing —
     // either way the current item has finished, so it's safe to rebuild.
-    const showNow = findBlock(nowManila())?.show?.id || null;
+    const showNow = blockRef.current?.(nowManila())?.show?.id || null;
     if (!it || showNow !== queueShow.current) { rollOver(); return; }
 
     const out = deck.current[active.current];
@@ -723,6 +740,8 @@ export default function Radio() {
   };
 
   rollRef.current = rollOver;
+  handoffRef.current = handoff;
+  blockRef.current = findBlock;
 
   useEffect(() => () => { clearTimeout(timer.current); clearTimeout(preload.current); }, []);
 
