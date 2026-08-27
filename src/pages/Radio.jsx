@@ -111,6 +111,32 @@ function shuffled(arr, rnd) {
   return a;
 }
 
+/* ---------- rotation ----------
+   Deals a pool out completely before reshuffling, and keeps the most recent
+   picks away from the front of the new shuffle — otherwise a track can be
+   dealt last from one pass and first from the next. */
+export function takeFromBag(state, pool, rnd) {
+  if (!pool.length) return null;
+  if (!state.bag) { state.bag = []; state.recent = []; }
+  // Remember half the pool. Anything in that memory goes to the back of the
+  // next pass, so nothing can come round again inside half a rotation.
+  const apart = Math.max(1, Math.floor(pool.length / 2));
+
+  if (!state.bag.length) {
+    // Deal everything before repeating, and push whatever was played most
+    // recently to the back of the new pass so it can't come straight round.
+    const fresh = shuffled(pool, rnd);
+    const held = fresh.filter((x) => state.recent.includes(x.url));
+    const free = fresh.filter((x) => !state.recent.includes(x.url));
+    state.bag = free.concat(shuffled(held, rnd));
+  }
+
+  const item = state.bag.shift();
+  state.recent.push(item.url);
+  while (state.recent.length > apart) state.recent.shift();
+  return item;
+}
+
 /* ---------- duration probing ----------
    Every listener has to arrive at the SAME number for every track,
    or their timelines drift apart and they hear different songs.
@@ -190,6 +216,8 @@ export default function Radio() {
   const handing = useRef(false);
   const preload = useRef(null);
   const queueShow = useRef(null);
+  const rollRef = useRef(null);
+  const rot = useRef({ showId: null });
   const liveRef = useRef(false);
 
   useEffect(() => { document.title = "HYPERSYNC RADIO"; }, []);
@@ -280,9 +308,12 @@ export default function Radio() {
       const items = [];
       let at = gap.start * 60;
       const endSec = gap.end * 60;
-      let i = 0, guard = 0;
+      const R = rot.current;
+      if (!R.ad) R.ad = {};
+      let guard = 0;
       while (at < endSec && guard++ < 200) {
-        const ad = adQ[i++ % adQ.length];
+        const ad = takeFromBag(R.ad, adQ, rnd);
+        if (!ad) break;
         at = put(items, { kind: "ad", title: ad.sponsor || "Advertisement", artist: "", url: ad.url },
           durCache.get(ad.url) || CFG.DEFAULT_DUR, at, endSec, 0);
       }
@@ -334,17 +365,29 @@ export default function Radio() {
     const playable = poolAll;
     setBadCount(poolAll.filter((s) => !durCache.get(s.url)).length);
 
-    let bag = [], lastPlayed = null;
+    // Rotation carries across rebuilds. Without this, every rebuild restarted
+    // the shuffled order from the top and you'd hear the same ad and the same
+    // station ID over and over.
+    const R = rot.current;
+    if (R.showId !== blk.show.id) {
+      R.showId = blk.show.id;
+      R.bag = [];
+      R.lastPlayed = null;
+      R.dj = {};
+      R.id = {};
+      R.ad = {};
+    }
+
     const nextSong = () => {
-      if (!bag.length) {
-        bag = shuffled(playable, rnd);
-        if (bag.length > 1 && lastPlayed && bag[0].url === lastPlayed) {
-          const j = 1 + Math.floor(rnd() * (bag.length - 1));
-          [bag[0], bag[j]] = [bag[j], bag[0]];
+      if (!R.bag.length) {
+        R.bag = shuffled(playable, rnd);
+        if (R.bag.length > 1 && R.lastPlayed && R.bag[0].url === R.lastPlayed) {
+          const j = 1 + Math.floor(rnd() * (R.bag.length - 1));
+          [R.bag[0], R.bag[j]] = [R.bag[j], R.bag[0]];
         }
       }
-      const s = bag.shift();
-      lastPlayed = s.url;
+      const s = R.bag.shift();
+      R.lastPlayed = s.url;
       return s;
     };
     const pick = (a) => (a && a.length ? a[Math.floor(rnd() * a.length)] : null);
@@ -364,9 +407,9 @@ export default function Radio() {
       place({ kind: "song", title: s.title, artist: s.artist, url: s.url },
         xf === undefined ? CFG.XFADE : xf);
 
-    let di = 0, ii = 0, ai = 0;
-    const nextDJ = () => (djQ.length ? djQ[di++ % djQ.length].url : null);
-    const nextID = () => (idQ.length ? idQ[ii++ % idQ.length].url : null);
+    const nextDJ = () => takeFromBag(R.dj, djQ, rnd)?.url || null;
+    const nextID = () => takeFromBag(R.id, idQ, rnd)?.url || null;
+    const nextAd = () => takeFromBag(R.ad, adQ, rnd);
 
     // the show opens with the DJ
     voice(nextDJ());
@@ -410,16 +453,13 @@ export default function Radio() {
       if (adQ.length) {
         const budget =
           CFG.BREAK_ADS_MIN + rnd() * (CFG.BREAK_ADS_MAX - CFG.BREAK_ADS_MIN);
-        let spent = 0, played = 0, tried = 0;
-        while (spent < budget && played < CFG.ADS_MAX && tried < adQ.length * 2) {
-          const ad = adQ[ai++ % adQ.length];
-          tried++;
-          const d = durCache.get(ad.url) || 45;
-          if (spent + d > budget) continue;   // doesn't fit — skip it
-          if (!place({ kind: "ad", title: ad.sponsor || "Advertisement", artist: "", url: ad.url }, 0))
-            break outer;
-          spent += d;
-          played++;
+        let spent = 0, count = 0;
+        while (spent < budget && count < CFG.ADS_MAX) {
+          const ad = nextAd();
+          if (!ad) break;
+          place({ kind: "ad", title: ad.sponsor || "Advertisement", artist: "", url: ad.url }, 0);
+          spent += durCache.get(ad.url) || 45;
+          count++;
         }
       }
 
@@ -597,6 +637,15 @@ export default function Radio() {
   // Rebuild the order for whatever's on now. Called when the queue runs out,
   // when the show changes, or if audio genuinely dies — never mid-item.
   const rollOver = useCallback(async (seekToClock = false) => {
+    // The library may not be here yet on a cold start. Wait for it rather
+    // than blanking the schedule — and retry through a ref, so the retry
+    // always uses the current state instead of the snapshot it was born in.
+    if (!lib) {
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => rollRef.current?.(), 1500);
+      return;
+    }
+
     const t = nowManila();
     const { items, blk, empty: none, forShowId } = await build(t);
     line.current = items;
@@ -609,7 +658,7 @@ export default function Radio() {
       setNowItem({ kind: "break", title: "Station break", artist: "" });
       deck.current.forEach((a) => a.pause());
       clearTimeout(timer.current);
-      timer.current = setTimeout(rollOver, 15000);
+      timer.current = setTimeout(() => rollRef.current?.(), 15000);
       return;
     }
 
@@ -620,7 +669,7 @@ export default function Radio() {
       if (spot) { startItem(spot.i, spot.off); return; }
     }
     startItem(0, 0);
-  }, [build, locate, startItem]);
+  }, [lib, build, locate, startItem]);
 
   const resync = rollOver;
 
@@ -670,8 +719,10 @@ export default function Radio() {
     const spot = locate(t, items, blk);
     if (spot) startItem(spot.i, spot.off);
     else if (items.length) startItem(0, 0);
-    else timer.current = setTimeout(rollOver, 5000);
+    else timer.current = setTimeout(() => rollRef.current?.(), 5000);
   };
+
+  rollRef.current = rollOver;
 
   useEffect(() => () => { clearTimeout(timer.current); clearTimeout(preload.current); }, []);
 
@@ -798,7 +849,7 @@ export default function Radio() {
 
       {debug && (
         <div className="rw-diag">
-          {lib ? `${lib.songs.length} songs loaded · ${pool} in this show${badCount ? ` (${badCount} unreadable)` : ""} · ${lib.drops.length} drops · ${lib.ads.length} ads` : "loading…"}
+          {lib ? `${lib.shows.length} shows · ${lib.songs.length} songs · ${pool} in show · ${lib.drops.length} drops · ${lib.ads.length} ads · block=${block ? (block.show ? block.show.name : "GAP") : "NONE"} · queue=${line.current.length}` : "loading…"}
         </div>
       )}
 
