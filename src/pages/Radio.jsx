@@ -121,15 +121,8 @@ function shuffled(arr, rnd) {
    • The running order is rebuilt often. Without persistence every rebuild
      restarted the same seeded shuffle, so only the first few spots in that
      order were ever heard. */
-const ROT_KEY = "hsr_rotation_v2";
-const DUR_KEY = "hsr_durations_v1";
 
-function loadRot() {
-  try { return JSON.parse(localStorage.getItem(ROT_KEY) || "{}"); } catch { return {}; }
-}
-function saveRot(state) {
-  try { localStorage.setItem(ROT_KEY, JSON.stringify(state)); } catch { /* private mode */ }
-}
+
 
 export function takeFromBag(state, pool, rnd) {
   if (!pool.length) return null;
@@ -165,19 +158,7 @@ export function takeFromBag(state, pool, rnd) {
 // these, so once a browser has heard something it computes the same running
 // order as everyone else — which is what keeps listeners together.
 const durCache = new Map();
-try {
-  const saved = JSON.parse(localStorage.getItem(DUR_KEY) || "{}");
-  for (const k of Object.keys(saved)) durCache.set(k, saved[k]);
-} catch { /* private mode */ }
 
-let durSaveTimer = null;
-function rememberDurations() {
-  clearTimeout(durSaveTimer);
-  durSaveTimer = setTimeout(() => {
-    try { localStorage.setItem(DUR_KEY, JSON.stringify(Object.fromEntries(durCache))); }
-    catch { /* ignore */ }
-  }, 2000);
-}
 
 function readDuration(url, ms) {
   return new Promise((res) => {
@@ -258,7 +239,7 @@ export default function Radio() {
   const blockRef = useRef(null);
   const blkRef = useRef(null);
   const locateRef = useRef(null);
-  const rot = useRef(loadRot());
+  const rot = useRef({ showId: null });
   const liveRef = useRef(false);
 
   useEffect(() => { document.title = "HYPERSYNC RADIO"; }, []);
@@ -375,8 +356,7 @@ export default function Radio() {
         }
       }
 
-      saveRot(rot.current);
-      return { items, blk: gap, forShowId: null };
+        return { items, blk: gap, forShowId: null };
     }
 
     // ---------- inside a show ----------
@@ -545,7 +525,6 @@ export default function Radio() {
       }
     }
 
-    saveRot(rot.current);
     return { items, blk, forShowId: blk?.show?.id || null };
   }, [lib, findBlock, findGap]);
 
@@ -585,7 +564,7 @@ export default function Radio() {
     // accurate and the clock stops disagreeing with what's actually playing.
     const learn = () => {
       const d = cur.duration;
-      if (d && isFinite(d) && d > 1) { durCache.set(it.url, Math.round(d)); rememberDurations(); }
+      if (d && isFinite(d) && d > 1 && !durCache.has(it.url)) durCache.set(it.url, Math.round(d));
     };
     cur.addEventListener("loadedmetadata", learn, { once: true });
     if (cur.readyState >= 1) learn();
@@ -831,7 +810,6 @@ export default function Radio() {
         }
       })
     );
-    rememberDurations();
 
     setFill((f) => ({ ...f, note: "saving…" }));
     let saved = 0;
