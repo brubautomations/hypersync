@@ -44,6 +44,8 @@ const CFG = {
 
   TALKOVER: 6.0,          // seconds an outro rides over the song's tail
   XFADE_MIN: 0.9,         // never hard-cut between two items
+  PROBE_MS: 6000,         // per-file ceiling when reading a length
+  PROBE_TOTAL_MS: 9000,   // and a hard ceiling on the whole batch
 
   XFADE: 2.0,
   XFADE_VOICE: 0.6,
@@ -135,12 +137,31 @@ function readDuration(url, ms) {
   });
 }
 
-async function probe(url) {
+// If Airtable has a Duration we use it and never touch the file. Otherwise we
+// read it once — with a short ceiling, because the running order can't be
+// built until these come back and a slow file would hold up the whole station.
+async function probe(item) {
+  const url = typeof item === "string" ? item : item.url;
   if (durCache.has(url)) return durCache.get(url);
-  let d = await readDuration(url, 45000);
-  if (!d) d = await readDuration(url, 45000);   // one retry on a cold cache
-  durCache.set(url, d);                          // 0 means "unusable"
+
+  const given = typeof item === "object" ? Number(item.dur) || 0 : 0;
+  if (given > 0) {
+    durCache.set(url, Math.round(given));
+    return durCache.get(url);
+  }
+
+  const d = await readDuration(url, CFG.PROBE_MS);
+  durCache.set(url, d);
   return d;
+}
+
+// Never let one slow file stall everything — take what we have and move on.
+function probeAll(list) {
+  const jobs = list.map(probe);
+  return Promise.race([
+    Promise.all(jobs),
+    new Promise((r) => setTimeout(r, CFG.PROBE_TOTAL_MS)),
+  ]);
 }
 
 export default function Radio() {
@@ -164,6 +185,7 @@ export default function Radio() {
   const active = useRef(0);
   const line = useRef([]);
   const timer = useRef(null);
+  const cursor = useRef(-1);
   const handing = useRef(false);
   const preload = useRef(null);
   const liveRef = useRef(false);
@@ -248,7 +270,7 @@ export default function Radio() {
       const adQ = shuffled(lib.ads, rnd);
       if (!adQ.length) return { items: [], blk: gap, empty: true };
 
-      await Promise.all([...new Set(adQ.map((a) => a.url))].map(probe));
+      await probeAll(adQ);
 
       const items = [];
       let at = gap.start * 60;
@@ -288,9 +310,7 @@ export default function Radio() {
     const idQ = shuffled(lib.drops.filter((d) => forShow(d) && isID(d)), rnd);
     const adQ = shuffled(lib.ads, rnd);
 
-    await Promise.all(
-      [...new Set([...poolAll, ...djQ, ...idQ, ...adQ].map((x) => x.url))].map(probe)
-    );
+    await probeAll([...poolAll, ...djQ, ...idQ, ...adQ]);
 
     const playable = poolAll.filter((s) => durCache.get(s.url) > 0);
     setBadCount(poolAll.length - playable.length);

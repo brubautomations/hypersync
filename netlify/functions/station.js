@@ -156,6 +156,7 @@ export default async (req) => {
         shows: linkedShows(r.fields),
         active: r.fields.Played !== false,
         created: r.createdTime,   // lets new songs join at the next show boundary
+        dur: Number(r.fields.Duration) || 0,   // saves the player probing the file
         intros: urlList(r.fields, ["Intro Audio", "Intro URL", "Intro"]),
         outros: urlList(r.fields, ["Outro Audio", "Outro URL", "Outro"]),
       }))
@@ -166,6 +167,7 @@ export default async (req) => {
         id: r.id,
         url: audioOf(r.fields, ["File URL", "Audio", "File", "Attachment"]),
         type: r.fields.Type || "Station ID",
+        dur: Number(r.fields.Duration) || 0,
         shows: linkedShows(r.fields),
       }))
       .filter((d) => d.url);
@@ -175,6 +177,7 @@ export default async (req) => {
         id: r.id,
         url: audioOf(r.fields, ["File URL", "Audio", "File", "Attachment"]),
         sponsor: r.fields.Sponsor || "",
+        dur: Number(r.fields.Duration) || 0,
         active: r.fields.Active !== false,
       }))
       .filter((a) => a.url && a.active);
