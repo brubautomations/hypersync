@@ -43,6 +43,7 @@ const CFG = {
   P_MID_LINE: 0.12,       // chance of an intro/outro landing mid-set
 
   TALKOVER: 6.0,          // seconds an outro rides over the song's tail
+  XFADE_MIN: 0.9,         // never hard-cut between two items
 
   XFADE: 2.0,
   XFADE_VOICE: 0.6,
@@ -60,20 +61,23 @@ const toMin = (s) => {
 const clock = (d) =>
   [d.getHours(), d.getMinutes(), d.getSeconds()]
     .map((n) => String(n).padStart(2, "0")).join(":");
-// what the listener sees: their own local time, wherever they are
-const localClock = () => {
-  const d = new Date();
-  const hh = d.getHours(), mm = String(d.getMinutes()).padStart(2, "0");
-  const ap = hh < 12 ? "AM" : "PM";
-  return `${hh % 12 === 0 ? 12 : hh % 12}:${mm} ${ap}`;
-};
-const localZone = () => {
+// The station runs on Manila time, so that column is the one that matters;
+// the rest are there so an overseas listener can place themselves.
+const ZONES = [
+  { label: "MANILA / SG", tz: "Asia/Manila", home: true },
+  { label: "TOKYO / SEOUL", tz: "Asia/Tokyo" },
+  { label: "DUBAI", tz: "Asia/Dubai" },
+  { label: "LA", tz: "America/Los_Angeles" },
+];
+
+const zoneTime = (tz) => {
   try {
-    return new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
-      .formatToParts(new Date())
-      .find((p) => p.type === "timeZoneName")?.value || "";
-  } catch { return ""; }
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: tz, hour: "numeric", minute: "2-digit", hour12: true,
+    }).format(new Date());
+  } catch { return "--:--"; }
 };
+
 const label = (mins) => {
   const h = Math.floor(mins / 60) % 24, m = mins % 60;
   const ap = h < 12 ? "AM" : "PM";
@@ -160,6 +164,7 @@ export default function Radio() {
   const active = useRef(0);
   const line = useRef([]);
   const timer = useRef(null);
+  const handing = useRef(false);
 
   useEffect(() => { document.title = "HYPERSYNC RADIO"; }, []);
 
@@ -403,15 +408,30 @@ export default function Radio() {
     return null;
   }, []);
 
-  /* ---------- playback ---------- */
-  const playIndex = useCallback((i, offset) => {
-    const items = line.current, it = items[i];
+  /* ---------- playback ----------
+     Driven by the audio itself, not by the clock. An item always finishes:
+     the handoff is armed off the real remaining time, so buffering delays
+     the next item instead of cutting the current one. The next file is
+     preloaded well ahead so it starts without a gap. */
+
+  const startItem = useCallback((i, offset) => {
+    const items = line.current;
+    const it = items[i];
     if (!it) return;
-    const cur = deck.current[active.current], nxt = deck.current[1 - active.current];
+
+    cursor.current = i;
+    handing.current = false;
+
+    const cur = deck.current[active.current];
+    const nxt = deck.current[1 - active.current];
+
     cur.pause();
+    cur.ontimeupdate = null;
+    cur.onended = null;
     cur.src = it.url;
     cur.volume = vol;
-    cur.currentTime = Math.max(0, Math.min(offset || 0, Math.max(0, it.dur - 1)));
+    try { cur.currentTime = Math.max(0, offset || 0); } catch { /* set on load */ }
+
     setAudioErr("");
     cur.onerror = () =>
       setAudioErr("That file wouldn't load: " + decodeURIComponent(it.url.split("/").pop()));
@@ -422,58 +442,71 @@ export default function Radio() {
           : "Playback blocked: " + (e?.message || e)
       )
     );
-    nxt.pause();
     setNowItem(it);
 
-    clearTimeout(timer.current);
-    const nextIt = items[i + 1];
-    if (nextIt) {
-      const ov = it.xf || 0;
-      timer.current = setTimeout(() => handoff(i + 1, ov),
-        Math.max(200, (it.dur - cur.currentTime - ov) * 1000));
-    } else {
-      timer.current = setTimeout(() => resync(), Math.max(500, (it.dur - cur.currentTime) * 1000));
+    // get the next file buffering now, not when it's due
+    const nx = items[i + 1];
+    if (nx) {
+      nxt.pause();
+      nxt.src = nx.url;
+      try { nxt.load(); } catch { /* ignore */ }
     }
+
+    // arm the crossfade off the real remaining time
+    cur.ontimeupdate = () => {
+      if (handing.current) return;
+      const d = cur.duration;
+      if (!d || !isFinite(d)) return;
+      const ov = Math.max(CFG.XFADE_MIN, Math.min(it.xf || 0, d / 3));
+      if (d - cur.currentTime <= ov) {
+        handing.current = true;
+        handoff(i + 1, ov);
+      }
+    };
+    cur.onended = () => {
+      if (handing.current) return;
+      handing.current = true;
+      handoff(i + 1, 0);
+    };
   }, [vol]);
 
   const handoff = useCallback((i, overlap) => {
-    const items = line.current, it = items[i];
-    if (!it) return resync();
-    const out = deck.current[active.current], inc = deck.current[1 - active.current];
+    const items = line.current;
+    const it = items[i];
+    if (!it) { rollOver(); return; }
 
-    inc.src = it.url;
-    inc.currentTime = 0;
+    const out = deck.current[active.current];
+    const inc = deck.current[1 - active.current];
+
+    if (inc.src !== it.url) inc.src = it.url;
+    try { inc.currentTime = 0; } catch { /* ignore */ }
     inc.volume = it.kind === "voice" ? vol : 0;
     inc.play().catch(() => {});
 
-    if (!overlap) {
-      out.pause();
-      inc.volume = vol;
-    }
-    const steps = overlap ? 20 : 0;
+    const ms = Math.max(200, overlap * 1000);
+    const steps = 20;
     let s = 0;
     const fade = setInterval(() => {
-      s++; const k = s / steps;
+      s++;
+      const k = s / steps;
+      // a voice sits on top and the music ducks under it; anything else fades
       out.volume = it.kind === "voice" ? vol * (1 - k * (1 - CFG.DUCK)) : vol * (1 - k);
       if (it.kind !== "voice") inc.volume = vol * k;
-      if (s >= steps) { clearInterval(fade); out.pause(); inc.volume = vol; }
-    }, steps ? (overlap * 1000) / steps : 1000000);
-    if (!steps) clearInterval(fade);
+      if (s >= steps) {
+        clearInterval(fade);
+        out.pause();
+        out.ontimeupdate = null;
+        out.onended = null;
+        inc.volume = vol;
+      }
+    }, ms / steps);
 
     active.current = 1 - active.current;
-    setNowItem(it);
+    startItem(i, 0);
+  }, [vol, startItem]);
 
-    clearTimeout(timer.current);
-    const nextIt = items[i + 1];
-    if (nextIt) {
-      const ov = it.xf || 0;
-      timer.current = setTimeout(() => handoff(i + 1, ov), Math.max(200, (it.dur - ov) * 1000));
-    } else {
-      timer.current = setTimeout(() => resync(), Math.max(500, it.dur * 1000));
-    }
-  }, [vol]);
-
-  const resync = useCallback(async () => {
+  // Reached the end of the built list — rebuild and drop in at the clock.
+  const rollOver = useCallback(async () => {
     const t = nowManila();
     const { items, blk, empty: none } = await build(t);
     line.current = items;
@@ -481,94 +514,59 @@ export default function Radio() {
     setEmpty(!!none);
     if (!live) return;
     const spot = locate(t, items, blk);
-    if (spot) playIndex(spot.i, spot.off);
+    if (spot) startItem(spot.i, spot.off);
     else {
       setNowItem({ kind: "break", title: "Station break", artist: "" });
       deck.current.forEach((a) => a.pause());
       clearTimeout(timer.current);
-      timer.current = setTimeout(resync, 15000);
+      timer.current = setTimeout(rollOver, 15000);
     }
-  }, [build, locate, live, playIndex]);
+  }, [build, locate, live, startItem]);
 
-  useEffect(() => {
-    if (!lib) return;
-    (async () => {
-      const t = nowManila();
-      const { items, blk, empty: none } = await build(t);
-      line.current = items;
-      setBlock(blk);
-      setEmpty(!!none);
-    })();
-  }, [lib, build]);
-
-  useEffect(() => {
-    const id = setInterval(() => setTick((n) => n + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  const unlockDecks = async () => {
-    await Promise.all(
-      deck.current.map(async (a) => {
-        try {
-          a.src = SILENCE;
-          a.muted = true;
-          await a.play();
-          a.pause();
-          a.currentTime = 0;
-        } catch { /* ignore — we try again on the next tap */ }
-        a.muted = false;
-      })
-    );
-  };
-
-  const toggle = async () => {
-    if (live) {
-      setLive(false);
-      clearTimeout(timer.current);
-      deck.current.forEach((a) => a.pause());
-      setNowItem(null);
-      return;
-    }
-    await unlockDecks();          // must happen inside the tap, before anything async
-    setLive(true);
-    const t = nowManila();
-    const { items, blk, empty: none } = await build(t);
-    line.current = items;
-    setBlock(blk);
-    setEmpty(!!none);
-    const spot = locate(t, items, blk);
-    if (spot) playIndex(spot.i, spot.off);
-    else timer.current = setTimeout(resync, 5000);
-  };
+  const resync = rollOver;
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
   /* ---------- watchdog ----------
-     Background windows get their timers throttled, so a handoff scheduled
-     minutes ahead can fire late or not at all. Every few seconds this checks
-     the clock against what's actually playing and corrects it, so a missed
-     timer costs a few seconds instead of stopping the station. */
+     Only looks for genuinely stuck audio — a dead element, or a playhead
+     that hasn't moved. It never compares against the clock and never
+     interrupts something that's playing, so nothing gets cut short. */
   useEffect(() => {
     if (!live) return;
+    let last = -1, still = 0;
     const id = setInterval(() => {
-      const items = line.current;
-      const t = nowManila();
+      const a = deck.current[active.current];
+      if (!a) return;
 
-      if (!items.length) { resync(); return; }
+      const dead = a.error || (a.paused && !handing.current);
+      const frozen = !a.paused && a.currentTime === last;
 
-      const spot = locate(t, items, block);
-      if (!spot) { resync(); return; }
-
-      const target = items[spot.i];
-      const deckNow = deck.current[active.current];
-      const wrongTrack = !deckNow || deckNow.src !== target.url;
-      const stalled = deckNow && deckNow.paused;
-      const adrift = deckNow && Math.abs(deckNow.currentTime - spot.off) > 6;
-
-      if (wrongTrack || stalled || adrift) playIndex(spot.i, spot.off);
-    }, 5000);
+      if (dead || frozen) {
+        still++;
+        if (still >= 4) {           // ~8 seconds of nothing happening
+          still = 0;
+          rollOver();
+        }
+      } else {
+        still = 0;
+      }
+      last = a.currentTime;
+    }, 2000);
     return () => clearInterval(id);
-  }, [live, block, locate, playIndex, resync]);
+  }, [live, rollOver]);
+
+  /* Shows change on the clock, so check for a new block between items.
+     Drift inside a block is fine; it resets when the next show starts. */
+  useEffect(() => {
+    if (!live || !lib) return;
+    const id = setInterval(() => {
+      const now = findBlock(nowManila());
+      const showId = now?.show?.id || null;
+      const haveId = block?.show?.id || null;
+      if (showId !== haveId) rollOver();
+    }, 20000);
+    return () => clearInterval(id);
+  }, [live, lib, block, findBlock, rollOver]);
 
   const t = nowManila();
   const shows = lib?.shows || [];
@@ -591,10 +589,6 @@ export default function Radio() {
                    onError={(e) => { e.currentTarget.style.display = "none"; }} />
             </div>}
 
-        <div className="rw-timechip">
-          <div className="rw-tnow">{localClock()}</div>
-          <div className="rw-tzone">{localZone()}</div>
-        </div>
       </header>
 
       <div className="rw-status">
@@ -606,6 +600,15 @@ export default function Radio() {
         <span className="rw-showname">
           {showLabel}
         </span>
+      </div>
+
+      <div className="rw-clocks">
+        {ZONES.map((z) => (
+          <div key={z.tz} className={z.home ? "rw-clock on" : "rw-clock"}>
+            <span className="rw-czone">{z.label}</span>
+            <span className="rw-ctime">{zoneTime(z.tz)}</span>
+          </div>
+        ))}
       </div>
 
       {/* ---------- canvas / visualizer ---------- */}
@@ -699,12 +702,20 @@ const CSS = `
 .rw-art--none{display:grid;place-items:center;height:96px;background:#15151D}
 .rw-art--none img{height:38px;width:auto}
 
-.rw-timechip{position:absolute;top:10px;right:10px;text-align:right;
-  background:rgba(12,12,17,.78);backdrop-filter:blur(8px);
-  border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:6px 11px}
-.rw-tnow{font-size:15px;font-weight:900;letter-spacing:.02em;
-  font-variant-numeric:tabular-nums;line-height:1.1}
-.rw-tzone{font-size:8.5px;font-weight:800;letter-spacing:.15em;color:#8B8B9E;margin-top:1px}
+.rw-clocks{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;flex-shrink:0;
+  background:#2A2A38;border-bottom:1px solid #2A2A38}
+.rw-clock{background:#0C0C11;padding:8px 4px;text-align:center;display:flex;
+  flex-direction:column;gap:3px}
+.rw-czone{font-size:8px;font-weight:800;letter-spacing:.1em;color:#5C5C70;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rw-ctime{font-size:12.5px;font-weight:900;letter-spacing:.01em;color:#C9C9D6;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.rw-clock.on .rw-czone{color:var(--volt,#FFD60A)}
+.rw-clock.on .rw-ctime{color:#fff}
+@media (max-width:420px){
+  .rw-czone{font-size:7px;letter-spacing:.06em}
+  .rw-ctime{font-size:11px}
+}
 
 /* ---- status strip ---- */
 .rw-status{display:flex;align-items:center;gap:8px;padding:9px 14px;flex-shrink:0;
