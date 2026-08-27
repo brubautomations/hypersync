@@ -905,6 +905,25 @@ export default function Radio() {
     <div className="rw">
       <style>{CSS}</style>
 
+      {fillMode && (
+        <div className="rw-fill">
+          <button
+            className="rw-btn"
+            onClick={runFill}
+            disabled={!lib || (fill && fill.note !== "done" && !fill.note.startsWith("problem"))}
+          >
+            {fill ? "MEASURING…" : "FILL DURATIONS"}
+          </button>
+          <span className="rw-fillnote">
+            {fill
+              ? `read ${fill.done}/${fill.total} · saved ${fill.saved} · ${fill.note}`
+              : lib
+                ? `${lib.songs.length + lib.drops.length + lib.ads.length} files ready`
+                : "loading…"}
+          </span>
+        </div>
+      )}
+
       {/* ---------- show art + local time ---------- */}
       <header className="rw-head">
         {art
@@ -981,19 +1000,6 @@ export default function Radio() {
           {listOpen ? "HIDE SCHEDULE" : "SCHEDULE"}
         </button>
       </div>
-
-      {fillMode && (
-        <div className="rw-fill">
-          <button className="rw-btn" onClick={runFill} disabled={!lib || (fill && fill.note !== "done" && !fill.note.startsWith("problem"))}>
-            {fill ? "MEASURING…" : "FILL DURATIONS"}
-          </button>
-          {fill && (
-            <span className="rw-fillnote">
-              read {fill.done}/{fill.total} · saved {fill.saved} · {fill.note}
-            </span>
-          )}
-        </div>
-      )}
 
       {err && <div className="rw-err">{err}</div>}
       {audioErr && <div className="rw-err">{audioErr}</div>}
@@ -1120,9 +1126,11 @@ const CSS = `
 .rw-onair{margin-left:auto;font-style:normal;font-size:8.5px;font-weight:900;
   letter-spacing:.14em;background:#FF3B5C;color:#fff;padding:3px 6px;border-radius:4px}
 
-.rw-fill{display:flex;align-items:center;gap:12px;padding:12px 14px;flex-shrink:0;
-  border-top:1px solid #2A2A38;background:#101017}
-.rw-fillnote{font-size:11px;font-weight:700;letter-spacing:.06em;color:#8B8B9E}
+.rw-fill{position:fixed;top:0;left:0;right:0;z-index:2147483600;
+  display:flex;align-items:center;gap:12px;padding:12px 14px;
+  background:#FFD60A;color:#000;box-shadow:0 4px 18px rgba(0,0,0,.5)}
+.rw-fill .rw-btn{background:#000;color:#FFD60A}
+.rw-fillnote{font-size:12px;font-weight:800;letter-spacing:.05em;color:#000}
 .rw-err{padding:13px 14px;color:#FF3B5C;font-size:12px;line-height:1.55;
   border-top:1px solid #2A2A38}
 .rw-diag{padding:8px 14px;color:#5C5C70;font-size:10px;font-weight:700;
