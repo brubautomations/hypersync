@@ -45,7 +45,8 @@ const CFG = {
   TALKOVER: 6.0,          // seconds an outro rides over the song's tail
   XFADE_MIN: 0.9,         // never hard-cut between two items
   PROBE_MS: 6000,         // per-file ceiling when reading a length
-  PROBE_TOTAL_MS: 9000,   // and a hard ceiling on the whole batch
+  PROBE_TOTAL_MS: 6000,   // and a hard ceiling on the whole batch
+  DEFAULT_DUR: 210,       // assumed length when a file won't say — never drop it
 
   XFADE: 2.0,
   XFADE_VOICE: 0.6,
@@ -258,7 +259,8 @@ export default function Radio() {
     // xf is how much the NEXT item overlaps this one — the player reads it
     // back so the audio crossfade matches the timeline exactly.
     const put = (list, o, dur, at, endSec, xfade) => {
-      if (!dur || at + dur > endSec) return null;
+      if (!dur) dur = CFG.DEFAULT_DUR;
+      if (at + dur > endSec) return null;
       list.push({ ...o, at, dur, xf: xfade || 0 });
       return at + dur - (xfade || 0);
     };
@@ -279,7 +281,7 @@ export default function Radio() {
       while (at < endSec && guard++ < 200) {
         const ad = adQ[i++ % adQ.length];
         const next = put(items, { kind: "ad", title: ad.sponsor || "Advertisement", artist: "", url: ad.url },
-          durCache.get(ad.url), at, endSec, 0);
+          durCache.get(ad.url) || CFG.DEFAULT_DUR, at, endSec, 0);
         if (next === null) break;
         at = next;
       }
@@ -312,9 +314,11 @@ export default function Radio() {
 
     await probeAll([...poolAll, ...djQ, ...idQ, ...adQ]);
 
-    const playable = poolAll.filter((s) => durCache.get(s.url) > 0);
-    setBadCount(poolAll.length - playable.length);
-    if (!playable.length) return { items: [], blk, empty: true };
+    // A file that hasn't reported its length yet still gets played — we just
+    // estimate it. Playback advances off the real audio, so a wrong estimate
+    // only shifts where a fresh listener drops in, and it self-corrects.
+    const playable = poolAll;
+    setBadCount(poolAll.filter((s) => !durCache.get(s.url)).length);
 
     let bag = [], lastPlayed = null;
     const nextSong = () => {
@@ -336,7 +340,7 @@ export default function Radio() {
     const endSec = blk.end * 60;
 
     const place = (o, xfade) => {
-      const next = put(items, o, durCache.get(o.url), at, endSec, xfade);
+      const next = put(items, o, durCache.get(o.url) || CFG.DEFAULT_DUR, at, endSec, xfade);
       if (next === null) return false;
       at = next;
       return true;
@@ -398,8 +402,8 @@ export default function Radio() {
         while (spent < budget && played < CFG.ADS_MAX && tried < adQ.length * 2) {
           const ad = adQ[ai++ % adQ.length];
           tried++;
-          const d = durCache.get(ad.url) || 0;
-          if (!d || spent + d > budget) continue;   // doesn't fit — skip it
+          const d = durCache.get(ad.url) || 45;
+          if (spent + d > budget) continue;   // doesn't fit — skip it
           if (!place({ kind: "ad", title: ad.sponsor || "Advertisement", artist: "", url: ad.url }, 0))
             break outer;
           spent += d;
@@ -421,8 +425,9 @@ export default function Radio() {
   }, [lib, findBlock, findGap]);
 
   const locate = useCallback((t, items, blk) => {
-    let sec = t.getHours() * 3600 + t.getMinutes() * 60 + t.getSeconds();
-    if (blk?.wrap) sec += 86400;
+    // An overnight block that began yesterday is laid out with negative
+    // seconds, so today's clock time already lines up — no day offset here.
+    const sec = t.getHours() * 3600 + t.getMinutes() * 60 + t.getSeconds();
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       if (sec >= it.at && sec < it.at + it.dur) return { i, off: sec - it.at };
