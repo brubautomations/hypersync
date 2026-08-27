@@ -48,11 +48,67 @@ async function table(name, token, base) {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// POST: save measured file lengths into the Duration column.
+// Only ever writes the Duration field, only on rows that already exist.
+// The token stays here on the server — nothing is handled by the browser.
+// ---------------------------------------------------------------------------
+async function writeDurations(req, token, base) {
+  let body;
+  try { body = await req.json(); } catch { body = null; }
+  const rows = Array.isArray(body?.rows) ? body.rows : [];
+  if (!rows.length) return Response.json({ error: "no rows" }, { status: 400 });
+
+  const allowed = { SONGS: 1, DROPS: 1, ADS: 1 };
+  const byTable = {};
+  for (const r of rows) {
+    const t = String(r.table || "").toUpperCase();
+    const id = String(r.id || "");
+    const dur = Math.round(Number(r.dur) || 0);
+    if (!allowed[t] || !id.startsWith("rec") || dur < 1 || dur > 7200) continue;
+    (byTable[t] = byTable[t] || []).push({ id, fields: { Duration: dur } });
+  }
+
+  let written = 0;
+  const failed = [];
+  for (const t of Object.keys(byTable)) {
+    const list = byTable[t];
+    for (let i = 0; i < list.length; i += 10) {          // Airtable caps at 10
+      const chunk = list.slice(i, i + 10);
+      const res = await fetch(
+        `https://api.airtable.com/v0/${base}/${encodeURIComponent(t)}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ records: chunk }),
+        }
+      );
+      if (res.ok) written += chunk.length;
+      else failed.push(`${t}: ${res.status}`);
+      await new Promise((r) => setTimeout(r, 220));      // stay under the rate limit
+    }
+  }
+
+  return Response.json(
+    { written, failed: [...new Set(failed)] },
+    { headers: { "Cache-Control": "no-store" } }
+  );
+}
+
 export default async (req) => {
   // /api/station?fresh=1 skips the edge cache — handy right after editing Airtable
   const fresh = new URL(req.url).searchParams.get("fresh") === "1";
   const token = process.env.RADIO_TOKEN;
   const base = process.env.RADIO_BASE_ID;
+
+  if (req.method === "POST") {
+    if (!token || !base)
+      return Response.json({ error: "RADIO_TOKEN and RADIO_BASE_ID are not set in Netlify." }, { status: 500 });
+    return writeDurations(req, token, base);
+  }
 
   if (!token || !base) {
     // Diagnostic: report which variable names this function can see.

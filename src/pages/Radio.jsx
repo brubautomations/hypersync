@@ -31,9 +31,9 @@ const CFG = {
 
   SONGS_MIN: 4,
   SONGS_MAX: 5,
-  ADS_MAX: 4,             // most spots in one in-show break
-  BREAK_ADS_MIN: 75,      // in-show stopset length, seconds
-  BREAK_ADS_MAX: 150,     // anything longer than this is left for the gaps
+  ADS_MAX: 2,             // most spots in one in-show break
+  BREAK_ADS_MIN: 45,      // in-show stopset length, seconds
+  BREAK_ADS_MAX: 95,      // anything longer than this is left for the gaps
 
   // Break composition. Each piece rolls on its own, so no two breaks match.
   P_BREAK_OUTRO: 0.55,    // outro of the song that just ended
@@ -112,29 +112,47 @@ function shuffled(arr, rnd) {
 }
 
 /* ---------- rotation ----------
-   Deals a pool out completely before reshuffling, and keeps the most recent
-   picks away from the front of the new shuffle — otherwise a track can be
-   dealt last from one pass and first from the next. */
+   Deals a pool out COMPLETELY before anything repeats, and remembers where it
+   got to across rebuilds, page reloads and library refreshes.
+
+   Two things this has to survive:
+   • Airtable regenerates attachment URLs on every fetch, so progress is
+     tracked by record id — a URL would look like a brand-new file each time.
+   • The running order is rebuilt often. Without persistence every rebuild
+     restarted the same seeded shuffle, so only the first few spots in that
+     order were ever heard. */
+const ROT_KEY = "hsr_rotation_v2";
+const DUR_KEY = "hsr_durations_v1";
+
+function loadRot() {
+  try { return JSON.parse(localStorage.getItem(ROT_KEY) || "{}"); } catch { return {}; }
+}
+function saveRot(state) {
+  try { localStorage.setItem(ROT_KEY, JSON.stringify(state)); } catch { /* private mode */ }
+}
+
 export function takeFromBag(state, pool, rnd) {
   if (!pool.length) return null;
-  if (!state.bag) { state.bag = []; state.recent = []; }
-  // Remember half the pool. Anything in that memory goes to the back of the
-  // next pass, so nothing can come round again inside half a rotation.
-  const apart = Math.max(1, Math.floor(pool.length / 2));
+  if (!Array.isArray(state.played)) state.played = [];
 
-  if (!state.bag.length) {
-    // Deal everything before repeating, and push whatever was played most
-    // recently to the back of the new pass so it can't come straight round.
-    const fresh = shuffled(pool, rnd);
-    const held = fresh.filter((x) => state.recent.includes(x.url));
-    const free = fresh.filter((x) => !state.recent.includes(x.url));
-    state.bag = free.concat(shuffled(held, rnd));
+  const byId = new Map(pool.map((x) => [x.id || x.url, x]));
+  const ids = [...byId.keys()];
+
+  // Anything not yet played this pass. When they've all had a turn, start a
+  // new pass — and keep the most recent picks out of the front of it.
+  let left = ids.filter((id) => !state.played.includes(id));
+  if (!left.length) {
+    const tail = state.played.slice(-Math.max(1, Math.floor(ids.length / 3)));
+    state.played = [];
+    left = ids.filter((id) => !tail.includes(id));
+    if (!left.length) left = ids.slice();
   }
 
-  const item = state.bag.shift();
-  state.recent.push(item.url);
-  while (state.recent.length > apart) state.recent.shift();
-  return item;
+  const pick = shuffled(left, rnd)[0];
+  state.played.push(pick);
+  // forget ids that have left the pool entirely
+  state.played = state.played.filter((id) => byId.has(id));
+  return byId.get(pick);
 }
 
 /* ---------- duration probing ----------
@@ -143,7 +161,23 @@ export function takeFromBag(state, pool, rnd) {
    So: whole seconds only, no timing-dependent fallbacks. A track
    whose length can't be established is dropped from rotation for
    everyone rather than guessed at. */
+// Real file lengths, remembered between visits. The timeline is built from
+// these, so once a browser has heard something it computes the same running
+// order as everyone else — which is what keeps listeners together.
 const durCache = new Map();
+try {
+  const saved = JSON.parse(localStorage.getItem(DUR_KEY) || "{}");
+  for (const k of Object.keys(saved)) durCache.set(k, saved[k]);
+} catch { /* private mode */ }
+
+let durSaveTimer = null;
+function rememberDurations() {
+  clearTimeout(durSaveTimer);
+  durSaveTimer = setTimeout(() => {
+    try { localStorage.setItem(DUR_KEY, JSON.stringify(Object.fromEntries(durCache))); }
+    catch { /* ignore */ }
+  }, 2000);
+}
 
 function readDuration(url, ms) {
   return new Promise((res) => {
@@ -201,9 +235,12 @@ export default function Radio() {
   const [vol, setVol] = useState(0.85);
   const [listOpen, setListOpen] = useState(false);
   // the readout is for you, not listeners: hypersync.live/radio?debug=1
+  const fillMode = typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("fill") === "1";
   const debug = typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("debug") === "1";
   const [empty, setEmpty] = useState(false);
+  const [fill, setFill] = useState(null);   // one-time duration fill
   const [pool, setPool] = useState(0);
   const [audioErr, setAudioErr] = useState("");
   const [badCount, setBadCount] = useState(0);
@@ -219,7 +256,9 @@ export default function Radio() {
   const rollRef = useRef(null);
   const handoffRef = useRef(null);
   const blockRef = useRef(null);
-  const rot = useRef({ showId: null });
+  const blkRef = useRef(null);
+  const locateRef = useRef(null);
+  const rot = useRef(loadRot());
   const liveRef = useRef(false);
 
   useEffect(() => { document.title = "HYPERSYNC RADIO"; }, []);
@@ -336,6 +375,7 @@ export default function Radio() {
         }
       }
 
+      saveRot(rot.current);
       return { items, blk: gap, forShowId: null };
     }
 
@@ -387,28 +427,26 @@ export default function Radio() {
     // Rotation carries across rebuilds. Without this, every rebuild restarted
     // the shuffled order from the top and you'd hear the same ad and the same
     // station ID over and over.
+    // Ads rotate station-wide and are never reset — every spot gets played
+    // before any of them comes round again, however long that takes.
+    // Drops and IDs are per-show, so they reset when the show does.
     const R = rot.current;
-    if (R.showId !== blk.show.id) {
-      R.showId = blk.show.id;
-      R.bag = [];
-      R.lastPlayed = null;
-      R.dj = {};
-      R.id = {};
-      R.ad = {};
-    }
+    if (!R.ad) R.ad = {};
+    if (!R.byShow) R.byShow = {};
+    if (!R.byShow[blk.show.id]) R.byShow[blk.show.id] = { dj: {}, id: {}, song: {} };
+    if (!R.byShow[blk.show.id].song) R.byShow[blk.show.id].song = {};
+    R.dj = R.byShow[blk.show.id].dj;
+    R.id = R.byShow[blk.show.id].id;
+    R.song = R.byShow[blk.show.id].song;
+    R.showId = blk.show.id;
 
-    const nextSong = () => {
-      if (!R.bag.length) {
-        R.bag = shuffled(playable, rnd);
-        if (R.bag.length > 1 && R.lastPlayed && R.bag[0].url === R.lastPlayed) {
-          const j = 1 + Math.floor(rnd() * (R.bag.length - 1));
-          [R.bag[0], R.bag[j]] = [R.bag[j], R.bag[0]];
-        }
-      }
-      const s = R.bag.shift();
-      R.lastPlayed = s.url;
-      return s;
-    };
+    // drop the old object-based bag if it's still in storage from a previous build
+    delete R.bag; delete R.lastPlayed;
+
+    // Songs rotate per show on the same id-based bag as everything else, so
+    // every track in a show gets played before any of them comes round again
+    // — and it survives reloads instead of restarting at the top.
+    const nextSong = () => takeFromBag(R.song, playable, rnd);
     const pick = (a) => (a && a.length ? a[Math.floor(rnd() * a.length)] : null);
 
     const items = [];
@@ -507,6 +545,7 @@ export default function Radio() {
       }
     }
 
+    saveRot(rot.current);
     return { items, blk, forShowId: blk?.show?.id || null };
   }, [lib, findBlock, findGap]);
 
@@ -546,7 +585,7 @@ export default function Radio() {
     // accurate and the clock stops disagreeing with what's actually playing.
     const learn = () => {
       const d = cur.duration;
-      if (d && isFinite(d) && d > 1) durCache.set(it.url, Math.round(d));
+      if (d && isFinite(d) && d > 1) { durCache.set(it.url, Math.round(d)); rememberDurations(); }
     };
     cur.addEventListener("loadedmetadata", learn, { once: true });
     if (cur.readyState >= 1) learn();
@@ -623,12 +662,23 @@ export default function Radio() {
 
   const handoff = useCallback((i, overlap) => {
     const items = line.current;
-    const it = items[i];
+    let it = items[i];
 
-    // Out of items, or the show has changed while this one was playing —
-    // either way the current item has finished, so it's safe to rebuild.
-    const showNow = blockRef.current?.(nowManila())?.show?.id || null;
-    if (!it || showNow !== queueShow.current) { rollOver(); return; }
+    // We're at a boundary — the previous item has finished, so it is safe to
+    // consult the clock. This is what keeps every listener on the same item:
+    // each one re-anchors to the same shared reference at every handoff.
+    // Mid-item we never do this, which is why nothing gets cut.
+    const t = nowManila();
+    const showNow = blockRef.current?.(t)?.show?.id || null;
+    if (showNow !== queueShow.current) { rollOver(); return; }
+
+    const spot = locateRef.current?.(t, items, blkRef.current);
+    if (spot) {
+      i = spot.i;
+      it = items[i];
+      if (it) { startItem(i, spot.off); return; }
+    }
+    if (!it) { rollOver(); return; }
 
     const out = deck.current[active.current];
     const inc = deck.current[1 - active.current];
@@ -756,9 +806,61 @@ export default function Radio() {
     else timer.current = setTimeout(() => rollRef.current?.(), 5000);
   };
 
+  // ---- one-time: measure every file and save the lengths ----
+  const runFill = useCallback(async () => {
+    if (!lib) return;
+    const jobs = [
+      ...lib.songs.map((x) => ({ table: "SONGS", id: x.id, url: x.url })),
+      ...lib.drops.map((x) => ({ table: "DROPS", id: x.id, url: x.url })),
+      ...lib.ads.map((x) => ({ table: "ADS", id: x.id, url: x.url })),
+    ].filter((j) => j.id && j.url);
+
+    setFill({ done: 0, total: jobs.length, saved: 0, note: "reading…" });
+
+    const rows = [];
+    let done = 0;
+    const LANES = 6;
+    await Promise.all(
+      Array.from({ length: LANES }, async (_, lane) => {
+        for (let i = lane; i < jobs.length; i += LANES) {
+          const j = jobs[i];
+          const d = await readDuration(j.url, 20000);
+          if (d > 0) { durCache.set(j.url, d); rows.push({ ...j, dur: d }); }
+          done++;
+          setFill((f) => ({ ...f, done }));
+        }
+      })
+    );
+    rememberDurations();
+
+    setFill((f) => ({ ...f, note: "saving…" }));
+    let saved = 0;
+    const failed = [];
+    for (let i = 0; i < rows.length; i += 40) {
+      try {
+        const res = await fetch(CFG.API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rows: rows.slice(i, i + 40) }),
+        });
+        const j = await res.json();
+        saved += j.written || 0;
+        if (j.failed?.length) failed.push(...j.failed);
+        if (j.error) failed.push(j.error);
+      } catch (e) { failed.push(String(e.message || e)); }
+      setFill((f) => ({ ...f, saved }));
+    }
+    setFill((f) => ({
+      ...f,
+      note: failed.length ? "problem: " + [...new Set(failed)].join(", ") : "done",
+    }));
+  }, [lib]);
+
   rollRef.current = rollOver;
   handoffRef.current = handoff;
   blockRef.current = findBlock;
+  blkRef.current = block;
+  locateRef.current = locate;
 
   useEffect(() => () => { clearTimeout(timer.current); clearTimeout(preload.current); }, []);
 
@@ -879,6 +981,19 @@ export default function Radio() {
           {listOpen ? "HIDE SCHEDULE" : "SCHEDULE"}
         </button>
       </div>
+
+      {fillMode && (
+        <div className="rw-fill">
+          <button className="rw-btn" onClick={runFill} disabled={!lib || (fill && fill.note !== "done" && !fill.note.startsWith("problem"))}>
+            {fill ? "MEASURING…" : "FILL DURATIONS"}
+          </button>
+          {fill && (
+            <span className="rw-fillnote">
+              read {fill.done}/{fill.total} · saved {fill.saved} · {fill.note}
+            </span>
+          )}
+        </div>
+      )}
 
       {err && <div className="rw-err">{err}</div>}
       {audioErr && <div className="rw-err">{audioErr}</div>}
@@ -1005,6 +1120,9 @@ const CSS = `
 .rw-onair{margin-left:auto;font-style:normal;font-size:8.5px;font-weight:900;
   letter-spacing:.14em;background:#FF3B5C;color:#fff;padding:3px 6px;border-radius:4px}
 
+.rw-fill{display:flex;align-items:center;gap:12px;padding:12px 14px;flex-shrink:0;
+  border-top:1px solid #2A2A38;background:#101017}
+.rw-fillnote{font-size:11px;font-weight:700;letter-spacing:.06em;color:#8B8B9E}
 .rw-err{padding:13px 14px;color:#FF3B5C;font-size:12px;line-height:1.55;
   border-top:1px solid #2A2A38}
 .rw-diag{padding:8px 14px;color:#5C5C70;font-size:10px;font-weight:700;
