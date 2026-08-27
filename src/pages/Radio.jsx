@@ -454,6 +454,17 @@ export default function Radio() {
     cur.ontimeupdate = null;
     cur.onended = null;
     setAudioErr("");
+
+    // The running order is built from estimates when a file hasn't reported
+    // its length. Once the element knows, record it — the next build is then
+    // accurate and the clock stops disagreeing with what's actually playing.
+    const learn = () => {
+      const d = cur.duration;
+      if (d && isFinite(d) && d > 1) durCache.set(it.url, Math.round(d));
+    };
+    cur.addEventListener("loadedmetadata", learn, { once: true });
+    if (cur.readyState >= 1) learn();
+
     cur.onerror = () =>
       setAudioErr("That file wouldn't load: " + decodeURIComponent(it.url.split("/").pop()));
 
@@ -576,8 +587,14 @@ export default function Radio() {
     setEmpty(!!none);
     if (!liveRef.current) return;
     const spot = locate(t, items, blk);
-    if (spot) startItem(spot.i, spot.off);
-    else {
+    if (spot) {
+      // Already playing the right thing? Leave it alone. Estimated lengths
+      // mean the clock and the audio drift apart, and restarting on every
+      // check is what makes it stutter between items.
+      const cur = deck.current[active.current];
+      const same = cur && !cur.paused && cur.src === items[spot.i].url;
+      if (!same) startItem(spot.i, spot.off);
+    } else {
       setNowItem({ kind: "break", title: "Station break", artist: "" });
       deck.current.forEach((a) => a.pause());
       clearTimeout(timer.current);
@@ -673,7 +690,10 @@ export default function Radio() {
       const now = findBlock(nowManila());
       const showId = now?.show?.id || null;
       const haveId = block?.show?.id || null;
-      if (showId !== haveId) rollOver();
+      if (showId === haveId) return;          // same show — nothing to do
+      const cur = deck.current[active.current];
+      if (cur && !cur.paused && cur.currentTime > 1) return;  // mid-item; catch it at the end
+      rollOver();
     }, 20000);
     return () => clearInterval(id);
   }, [live, lib, block, findBlock, rollOver]);
