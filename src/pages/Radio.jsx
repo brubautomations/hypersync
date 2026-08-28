@@ -235,6 +235,7 @@ export default function Radio() {
   const preload = useRef(null);
   const queueShow = useRef(null);
   const rollRef = useRef(null);
+  const toggleRef = useRef(null);
   const handoffRef = useRef(null);
   const blockRef = useRef(null);
   const blkRef = useRef(null);
@@ -834,7 +835,72 @@ export default function Radio() {
     }));
   }, [lib]);
 
+  /* ---------- phone: lock screen + waking up ----------
+     iOS suspends a backgrounded tab, so the player comes back with a stale
+     idea of the time. Two things are needed:
+     • tell the OS this is a media player, so audio survives the lock screen
+       and the track shows up there with working controls
+     • on waking, rebuild ONCE from the clock instead of stumbling through
+       several corrections, which is what caused the stutter on unlock  */
+  useEffect(() => {
+    const ms = navigator.mediaSession;
+    if (!ms) return;
+    if (!live || !nowItem) { try { ms.playbackState = "paused"; } catch {} return; }
+    try {
+      ms.metadata = new window.MediaMetadata({
+        title: nowItem.title || "HYPERSYNC RADIO",
+        artist: nowItem.artist || block?.show?.name || "HYPERSYNC RADIO",
+        album: block?.show?.name || "HYPERSYNC RADIO",
+        artwork: block?.show?.art
+          ? [{ src: block.show.art, sizes: "512x512", type: "image/jpeg" }]
+          : [],
+      });
+      ms.playbackState = "playing";
+    } catch { /* older browsers */ }
+  }, [live, nowItem, block]);
+
+  useEffect(() => {
+    const ms = navigator.mediaSession;
+    if (!ms) return;
+    const set = (action, fn) => { try { ms.setActionHandler(action, fn); } catch {} };
+    set("play", () => { if (!liveRef.current) toggleRef.current?.(); });
+    set("pause", () => { if (liveRef.current) toggleRef.current?.(); });
+    set("stop", () => { if (liveRef.current) toggleRef.current?.(); });
+    // A live station has nowhere to seek to.
+    set("seekbackward", null); set("seekforward", null);
+    set("previoustrack", null); set("nexttrack", null);
+    return () => { ["play","pause","stop"].forEach((a) => set(a, null)); };
+  }, []);
+
+  useEffect(() => {
+    // Coming back from the background. Don't try to measure how long we were
+    // away — a suspended tab can't be trusted to have recorded that. Just ask
+    // the only reliable question: we're supposed to be playing; are we?
+    // If not, re-anchor to the clock in one move.
+    const recover = () => {
+      if (document.visibilityState === "hidden") return;
+      if (!liveRef.current) return;
+      const a = deck.current[active.current];
+      const dead = !a || a.paused || a.error || !a.src;
+      if (!dead) return;
+      clearTimeout(timer.current);
+      clearTimeout(preload.current);
+      deck.current.forEach((d) => { try { d.pause(); } catch {} });
+      handing.current = false;
+      rollRef.current?.(true);
+    };
+    document.addEventListener("visibilitychange", recover);
+    window.addEventListener("pageshow", recover);
+    window.addEventListener("focus", recover);
+    return () => {
+      document.removeEventListener("visibilitychange", recover);
+      window.removeEventListener("pageshow", recover);
+      window.removeEventListener("focus", recover);
+    };
+  }, []);
+
   rollRef.current = rollOver;
+  toggleRef.current = toggle;
   handoffRef.current = handoff;
   blockRef.current = findBlock;
   blkRef.current = block;
