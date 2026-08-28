@@ -32,7 +32,13 @@ const CFG = {
   SONGS_MIN: 4,
   SONGS_MAX: 5,
   ADS_MAX: 2,             // most spots in one in-show break
-  JOIN_SLACK: 12,         // clock drift under this is ignored — start at 0
+  JOIN_SLACK: 90,         // clock drift under this is ignored — start at 0.
+                          // Everyone plays the same files, so everyone runs
+                          // late by the same amount; it costs no sync. A spot
+                          // overrunning the top of the hour is the usual cause,
+                          // and the next between-shows gap absorbs it — there's
+                          // less time to fill, so fewer ads play and the
+                          // station is back on time by the following show.
   JOIN_FADE: 1.1,         // fade-in, seconds, when we do join partway
   BREAK_ADS_MIN: 45,      // in-show stopset length, seconds
   BREAK_ADS_MAX: 95,      // anything longer than this is left for the gaps
@@ -333,8 +339,7 @@ export default function Radio() {
       const items = [];
       let at = gap.start * 60;
       const endSec = gap.end * 60;
-      const R = rot.current;
-      if (!R.ad) R.ad = {};
+      const R = { ad: {} };
       let guard = 0;
       while (at < endSec && guard++ < 200) {
         const ad = takeFromBag(R.ad, adQ, rnd);
@@ -410,21 +415,11 @@ export default function Radio() {
     // Rotation carries across rebuilds. Without this, every rebuild restarted
     // the shuffled order from the top and you'd hear the same ad and the same
     // station ID over and over.
-    // Ads rotate station-wide and are never reset — every spot gets played
-    // before any of them comes round again, however long that takes.
-    // Drops and IDs are per-show, so they reset when the show does.
-    const R = rot.current;
-    if (!R.ad) R.ad = {};
-    if (!R.byShow) R.byShow = {};
-    if (!R.byShow[blk.show.id]) R.byShow[blk.show.id] = { dj: {}, id: {}, song: {} };
-    if (!R.byShow[blk.show.id].song) R.byShow[blk.show.id].song = {};
-    R.dj = R.byShow[blk.show.id].dj;
-    R.id = R.byShow[blk.show.id].id;
-    R.song = R.byShow[blk.show.id].song;
-    R.showId = blk.show.id;
-
-    // drop the old object-based bag if it's still in storage from a previous build
-    delete R.bag; delete R.lastPlayed;
+    // Rotation starts EMPTY on every build. Carrying it over would mean two
+    // builds of the same show produced different running orders — which is
+    // what made a stop-and-tune-in land on a different song from everyone
+    // else. The order must depend on the date and the show and nothing else.
+    const R = { dj: {}, id: {}, ad: {}, song: {} };
 
     // Songs rotate per show on the same id-based bag as everything else, so
     // every track in a show gets played before any of them comes round again
@@ -972,7 +967,7 @@ export default function Radio() {
     const at = (n) => sorted[(idx + n) % sorted.length];
     const fmt = (s) => `${s.start}–${s.end}`;
     return [
-      { tag: "LIVE NOW", show: at(0), when: fmt(at(0)) },
+      { tag: "ON AIR", show: at(0), when: fmt(at(0)) },
       { tag: "UP NEXT", show: at(1), when: fmt(at(1)) },
       { tag: "AFTER THAT", show: at(2), when: fmt(at(2)) },
     ];
