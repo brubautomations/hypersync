@@ -24,6 +24,7 @@ async function api(action, payload = {}) {
 }
 
 /* ---------- shared bits ---------- */
+const selectStyle = { colorScheme: 'dark' }
 const inputStyle = {
   width: '100%', padding: '12px 14px', borderRadius: 10,
   border: '1px solid var(--line)', background: 'var(--card)',
@@ -484,7 +485,7 @@ function EarningsRoom() {
           </div>
           <div>
             <label style={labelStyle}>Method</label>
-            <select style={inputStyle} value={method} onChange={e => setMethod(e.target.value)}>
+            <select style={{ ...inputStyle, ...selectStyle }} value={method} onChange={e => setMethod(e.target.value)}>
               <option>Bank transfer</option>
               <option>Wise</option>
               <option>PayPal</option>
@@ -554,7 +555,7 @@ function MarketRoom() {
     <div style={{ display: 'grid', gap: 16, maxWidth: 680 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div className="display" style={{ fontSize: '0.9rem', letterSpacing: '0.08em', flex: 1 }}>YOUR MARKET</div>
-        {!editing && <button className="btn btn--volt" onClick={() => setEditing({ currency: '₱', active: true })}>Add item</button>}
+        {!editing && <button className="btn btn--volt" onClick={() => setEditing({ currency: '$', active: true })}>Add item</button>}
       </div>
       <Msg error={error} />
 
@@ -575,7 +576,19 @@ function MarketRoom() {
             </div>
             <div>
               <label style={labelStyle}>Currency</label>
-              <input style={inputStyle} value={editing.currency || '₱'} onChange={e => set('currency', e.target.value)} maxLength={4} />
+              <select style={{ ...inputStyle, ...selectStyle }} value={editing.currency || '$'}
+                onChange={e => set('currency', e.target.value)}>
+                <option value="$">USD $</option>
+                <option value="₩">KRW ₩</option>
+                <option value="¥">JPY ¥</option>
+                <option value="฿">THB ฿</option>
+                <option value="₫">VND ₫</option>
+                <option value="Rp">IDR Rp</option>
+                <option value="S$">SGD S$</option>
+                <option value="RM">MYR RM</option>
+                <option value="€">EUR €</option>
+                <option value="₱">PHP ₱</option>
+              </select>
             </div>
           </div>
           <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 2fr' }}>
