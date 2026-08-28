@@ -11,6 +11,7 @@ import Radio from './pages/Radio'
 import ChatDrawer from './components/ChatDrawer'
 import ErrorBoundary from './components/ErrorBoundary'
 import SignInWall from './components/SignInWall'
+import Portal from './portal/Portal'
 
 // Phase 2–4 pages land here. Placeholder keeps routes stable meanwhile.
 function ComingSoon({ label }) {
@@ -37,6 +38,17 @@ function Shell() {
       <ErrorBoundary>
         <Routes>
           <Route path="/radio" element={<Radio />} />
+        </Routes>
+      </ErrorBoundary>
+    )
+  }
+
+  // /portal is the artists' workspace — same treatment: no fan chrome.
+  if (pathname.startsWith('/portal')) {
+    return (
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/portal" element={<Portal />} />
         </Routes>
       </ErrorBoundary>
     )
