@@ -972,7 +972,7 @@ export default function Radio() {
     const at = (n) => sorted[(idx + n) % sorted.length];
     const fmt = (s) => `${s.start}–${s.end}`;
     return [
-      { tag: "ON AIR", show: at(0), when: fmt(at(0)) },
+      { tag: "LIVE NOW", show: at(0), when: fmt(at(0)) },
       { tag: "UP NEXT", show: at(1), when: fmt(at(1)) },
       { tag: "AFTER THAT", show: at(2), when: fmt(at(2)) },
     ];
