@@ -57,8 +57,13 @@ async function findAccount(email) {
 // artist reference: linked field "artist" (dropdown) wins, plain
 // text "artist_id" works as fallback — use whichever you filled.
 function artistIdOf(acct) {
-  if (Array.isArray(acct?.artist) && acct.artist[0]) return acct.artist[0];
-  return acct?.artist_id || null;
+  // accepts every shape: linked field named "artist" or "artist_id"
+  // (arrays), or a plain-text rec id in "artist_id"
+  for (const v of [acct?.artist, acct?.artist_id]) {
+    if (Array.isArray(v) && v[0]) return v[0];
+    if (typeof v === "string" && v.startsWith("rec")) return v;
+  }
+  return null;
 }
 
 const portalSession = (req) => {
