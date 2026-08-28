@@ -24,7 +24,8 @@ async function api(action, payload = {}) {
 }
 
 /* ---------- shared bits ---------- */
-const selectStyle = { colorScheme: 'dark' }
+const selectStyle = { colorScheme: 'dark', background: '#0D0D12', color: '#fff' }
+const optStyle = { background: '#0D0D12', color: '#fff' }
 const inputStyle = {
   width: '100%', padding: '12px 14px', borderRadius: 10,
   border: '1px solid var(--line)', background: 'var(--card)',
@@ -486,13 +487,13 @@ function EarningsRoom() {
           <div>
             <label style={labelStyle}>Method</label>
             <select style={{ ...inputStyle, ...selectStyle }} value={method} onChange={e => setMethod(e.target.value)}>
-              <option>Bank transfer</option>
-              <option>Wise</option>
-              <option>PayPal</option>
-              <option>Payoneer</option>
-              <option>GCash (PH)</option>
-              <option>Maya (PH)</option>
-              <option>Other</option>
+              <option style={optStyle}>Bank transfer</option>
+              <option style={optStyle}>Wise</option>
+              <option style={optStyle}>PayPal</option>
+              <option style={optStyle}>Payoneer</option>
+              <option style={optStyle}>GCash (PH)</option>
+              <option style={optStyle}>Maya (PH)</option>
+              <option style={optStyle}>Other</option>
             </select>
           </div>
         </div>
@@ -578,16 +579,16 @@ function MarketRoom() {
               <label style={labelStyle}>Currency</label>
               <select style={{ ...inputStyle, ...selectStyle }} value={editing.currency || '$'}
                 onChange={e => set('currency', e.target.value)}>
-                <option value="$">USD $</option>
-                <option value="₩">KRW ₩</option>
-                <option value="¥">JPY ¥</option>
-                <option value="฿">THB ฿</option>
-                <option value="₫">VND ₫</option>
-                <option value="Rp">IDR Rp</option>
-                <option value="S$">SGD S$</option>
-                <option value="RM">MYR RM</option>
-                <option value="€">EUR €</option>
-                <option value="₱">PHP ₱</option>
+                <option style={optStyle} value="$">USD $</option>
+                <option style={optStyle} value="₩">KRW ₩</option>
+                <option style={optStyle} value="¥">JPY ¥</option>
+                <option style={optStyle} value="฿">THB ฿</option>
+                <option style={optStyle} value="₫">VND ₫</option>
+                <option style={optStyle} value="Rp">IDR Rp</option>
+                <option style={optStyle} value="S$">SGD S$</option>
+                <option style={optStyle} value="RM">MYR RM</option>
+                <option style={optStyle} value="€">EUR €</option>
+                <option style={optStyle} value="₱">PHP ₱</option>
               </select>
             </div>
           </div>
