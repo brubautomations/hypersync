@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 /* ============================================================
    HYPERSYNC RADIO — standalone window (route: /radio)
@@ -32,6 +32,8 @@ const CFG = {
   SONGS_MIN: 4,
   SONGS_MAX: 5,
   ADS_MAX: 2,             // most spots in one in-show break
+  JOIN_SLACK: 12,         // clock drift under this is ignored — start at 0
+  JOIN_FADE: 1.1,         // fade-in, seconds, when we do join partway
   BREAK_ADS_MIN: 45,      // in-show stopset length, seconds
   BREAK_ADS_MAX: 95,      // anything longer than this is left for the gaps
 
@@ -584,12 +586,20 @@ export default function Radio() {
 
       const seek = Math.max(0, offset || 0);
       if (seek > 0) {
-        // currentTime can't be set until the file reports its length
+        // Landing in the middle of something should sound deliberate, the way
+        // a station fades you in when you tune in — not like a glitch.
+        cur.volume = 0;
         const onMeta = () => {
           try { cur.currentTime = Math.min(seek, (cur.duration || seek) - 0.5); } catch { /* ignore */ }
           cur.removeEventListener("loadedmetadata", onMeta);
         };
         cur.addEventListener("loadedmetadata", onMeta);
+        const t0 = Date.now();
+        const fade = setInterval(() => {
+          const k = Math.min(1, (Date.now() - t0) / (CFG.JOIN_FADE * 1000));
+          cur.volume = vol * k;
+          if (k >= 1) clearInterval(fade);
+        }, 50);
       }
 
       cur.play().catch((e) =>
@@ -656,7 +666,15 @@ export default function Radio() {
     if (spot) {
       i = spot.i;
       it = items[i];
-      if (it) { startItem(i, spot.off); return; }
+      if (it) {
+        // Durations are whole seconds, so a fraction is lost on every item and
+        // the clock creeps ahead of the audio. Every listener has the same
+        // rounded numbers and therefore the same creep, so it costs nothing to
+        // ignore — and correcting it is what made items start seconds in.
+        const off = spot.off > CFG.JOIN_SLACK ? spot.off : 0;
+        startItem(i, off);
+        return;
+      }
     }
     if (!it) { rollOver(); return; }
 
@@ -939,6 +957,33 @@ export default function Radio() {
 
   const t = nowManila();
   const shows = lib?.shows || [];
+
+  // NOW / NEXT / and the one after, for the rotating strip
+  const lineup = useMemo(() => {
+    if (!shows.length) return [];
+    const sorted = [...shows].sort((a, b) => toMin(a.start) - toMin(b.start));
+    const m = t.getHours() * 60 + t.getMinutes();
+    // whichever show started most recently is the one on air
+    let idx = 0, best = Infinity;
+    sorted.forEach((s, k) => {
+      const behind = (m - toMin(s.start) + 1440) % 1440;
+      if (behind < best) { best = behind; idx = k; }
+    });
+    const at = (n) => sorted[(idx + n) % sorted.length];
+    const fmt = (s) => `${s.start}–${s.end}`;
+    return [
+      { tag: "ON AIR", show: at(0), when: fmt(at(0)) },
+      { tag: "UP NEXT", show: at(1), when: fmt(at(1)) },
+      { tag: "AFTER THAT", show: at(2), when: fmt(at(2)) },
+    ];
+  }, [shows, t.getHours(), t.getMinutes()]);
+
+  const [slide, setSlide] = useState(0);
+  useEffect(() => {
+    if (!lineup.length) return;
+    const id = setInterval(() => setSlide((s) => (s + 1) % lineup.length), 5000);
+    return () => clearInterval(id);
+  }, [lineup.length]);
   const art = block?.show?.art || "";
   const showLabel = block
     ? (block.show ? block.show.name.toUpperCase() : "STATION BREAK")
@@ -985,9 +1030,23 @@ export default function Radio() {
           : nowItem?.kind === "ad" ? "AD BREAK"
           : nowItem?.kind === "break" ? "STATION BREAK"
           : "ON AIR"}
-        <span className="rw-showname">
-          {showLabel}
-        </span>
+
+        {/* Between shows the rotation stops and it just says what's coming. */}
+        {block && !block.show ? (
+          <span className="rw-showname">
+            {lineup[1]
+              ? <>COMING UP · {lineup[1].show.name.toUpperCase()} · {lineup[1].when}</>
+              : "STATION BREAK"}
+          </span>
+        ) : lineup.length ? (
+          <span className="rw-showname rw-rot" key={slide}>
+            <em>{lineup[slide].tag}</em>
+            {lineup[slide].show.name.toUpperCase()}
+            <b>{lineup[slide].when}</b>
+          </span>
+        ) : (
+          <span className="rw-showname">{showLabel}</span>
+        )}
       </div>
 
       <div className="rw-clocks">
@@ -1109,7 +1168,13 @@ const CSS = `
 .rw-status{display:flex;align-items:center;gap:8px;padding:9px 14px;flex-shrink:0;
   font-size:10px;font-weight:900;letter-spacing:.16em;background:#101017;
   border-bottom:1px solid #2A2A38}
-.rw-showname{margin-left:auto;color:var(--volt,#FFD60A);letter-spacing:.18em}
+.rw-showname{margin-left:auto;color:var(--volt,#FFD60A);letter-spacing:.18em;
+  display:flex;align-items:center;gap:9px;min-width:0}
+.rw-showname em{font-style:normal;color:#8B8B9E;letter-spacing:.2em;flex-shrink:0}
+.rw-showname b{font-weight:800;color:#EDEDF2;letter-spacing:.08em;flex-shrink:0}
+.rw-rot{animation:rwFade .45s ease}
+@keyframes rwFade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.rw-rot{animation:none}}
 .rw-dot{width:7px;height:7px;border-radius:50%;background:#FF3B5C;
   box-shadow:0 0 0 0 rgba(255,59,92,.7);animation:rwp 2s infinite}
 .rw-dot.off{background:#8B8B9E;animation:none;box-shadow:none}
