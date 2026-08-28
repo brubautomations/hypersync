@@ -54,6 +54,13 @@ async function findAccount(email) {
   return rows[0] || null;
 }
 
+// artist reference: linked field "artist" (dropdown) wins, plain
+// text "artist_id" works as fallback — use whichever you filled.
+function artistIdOf(acct) {
+  if (Array.isArray(acct?.artist) && acct.artist[0]) return acct.artist[0];
+  return acct?.artist_id || null;
+}
+
 const portalSession = (req) => {
   const u = getSessionFromRequest(req);
   return u && u.portal && u.artist_id ? u : null;
@@ -76,11 +83,13 @@ export default async function handler(req) {
       if (!acct || !acct.invite_code || acct.invite_code !== String(code).trim()) {
         return err("Invite code doesn't match", 401);
       }
+      const aid = artistIdOf(acct);
+      if (!aid) return err("This account isn't linked to an artist yet — contact HYPERSYNC", 409);
       await atUpdate(ACCOUNTS, acct.id, {
         password_hash: hashPassword(password),
         invite_code: "", // burned
       });
-      const session = signSession({ portal: true, artist_id: acct.artist_id, email: acct.email });
+      const session = signSession({ portal: true, artist_id: aid, email: acct.email });
       return json({ ok: true, session });
     }
 
@@ -91,7 +100,9 @@ export default async function handler(req) {
       const acct = await findAccount(email);
       if (!acct || !acct.password_hash) return err("Account not found or not activated", 401);
       if (!verifyPassword(password, acct.password_hash)) return err("Wrong email or password", 401);
-      const session = signSession({ portal: true, artist_id: acct.artist_id, email: acct.email });
+      const aid = artistIdOf(acct);
+      if (!aid) return err("This account isn't linked to an artist yet — contact HYPERSYNC", 409);
+      const session = signSession({ portal: true, artist_id: aid, email: acct.email });
       return json({ ok: true, session });
     }
 
