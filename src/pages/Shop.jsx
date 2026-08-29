@@ -47,7 +47,7 @@ export default function Shop() {
     let list = items || []
     if (cat !== 'ALL') list = list.filter(i => i.category === cat)
     if (who !== 'ALL') list = list.filter(i => i.artist_name === who)
-    return [...list.filter(i => i.featured), ...list.filter(i => !i.featured)]
+    return list  // Airtable row order, as arranged in the table
   }, [items, cat, who])
 
   const buyWithCredits = (it) => {
