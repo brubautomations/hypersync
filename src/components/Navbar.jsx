@@ -9,6 +9,7 @@ const LINKS = [
   { label: 'Feed', path: '/feed' },
   { label: 'Schedule', path: '/schedule' },
   { label: 'Shop', path: '/shop' },
+  { label: 'Messages', path: '/messages' },
 ]
 
 function SignInModal({ onClose }) {
@@ -153,6 +154,11 @@ export default function Navbar() {
                       <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{user.name}</div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--dim)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</div>
                     </div>
+                    <Link to="/messages" className="btn btn--quiet"
+                      style={{ width: '100%', justifyContent: 'flex-start' }}
+                      onClick={() => setUserMenu(false)}>
+                      Messages
+                    </Link>
                     <button className="btn btn--quiet" style={{ width: '100%', justifyContent: 'flex-start', color: 'var(--danger)' }}
                       onClick={signOut}>Sign out</button>
                   </div>
