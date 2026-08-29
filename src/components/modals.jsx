@@ -50,7 +50,7 @@ const PACK_TAGS = { fan: 'Most popular', superfan: 'Best value' }
 
 export function BuyCreditsModal({ onClose }) {
   const { refresh } = useCredits()
-  const [selected, setSelected] = useState('fan')
+  const [selected, setSelected] = useState('')
   const [PACKS, setPacks] = useState([])
   useEffect(() => {
     fetch('/api/credits?action=packs')
@@ -60,6 +60,7 @@ export function BuyCreditsModal({ onClose }) {
           .filter(([id]) => id !== 'test')
           .map(([id, p]) => ({ id, credits: p.credits, price: p.price, label: p.label[0] + p.label.slice(1).toLowerCase(), tag: PACK_TAGS[id] || '' }))
       ))
+      .then(() => {})
       .catch(() => {})
   }, [])
   const [phase, setPhase] = useState('pick') // pick | paying
@@ -68,6 +69,7 @@ export function BuyCreditsModal({ onClose }) {
   const pollRef = useRef(null)
 
   useEffect(() => () => clearInterval(pollRef.current), [])
+  useEffect(() => { if (!selected && PACKS.length) setSelected(PACKS[0].id) }, [PACKS, selected])
 
   const buy = async () => {
     setBusy(true); setError('')

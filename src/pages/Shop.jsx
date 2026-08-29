@@ -42,7 +42,7 @@ export default function Shop() {
     let list = items || []
     if (cat !== 'ALL') list = list.filter(i => i.category === cat)
     if (who !== 'ALL') list = list.filter(i => i.artist_name === who)
-    return list  // Airtable row order, as arranged in the table
+    return list  // exactly the order Airtable sends
   }, [items, cat, who])
 
   const buyWithCredits = (it) => {
@@ -61,12 +61,13 @@ export default function Shop() {
       .catch(() => window.alert('Purchase failed'))
   }
 
-  const price = (it) => {
-    const isCredit = /credit/i.test(it.category || '')
-    if (isCredit) return `${Number(it.credits || 0).toLocaleString()} credits — ₱${Number(it.price || 0).toLocaleString()}`
+  const isCredit = (it) => /credit/i.test(it.category || '')
+  const priceMain = (it) => {
+    if (isCredit(it)) return `${Number(it.credits || 0).toLocaleString()} credits`
     if (it.sell_via === 'hypersync') return `${Number(it.credits || it.price || 0).toLocaleString()} credits`
     return it.price != null && it.price !== '' ? `${it.currency || ''}${Number(it.price).toLocaleString()}` : ''
   }
+  const priceSub = (it) => (isCredit(it) ? `₱${Number(it.price || 0).toLocaleString()}` : '')
 
   return (
     <div className="wrap section">
@@ -137,9 +138,11 @@ export default function Shop() {
                 )}
                 <div style={{ fontWeight: 800, fontSize: '0.9rem', lineHeight: 1.35 }}>{it.item_name}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto', paddingTop: 8 }}>
-                  <span className="display" style={{ fontSize: '1.05rem' }}>{price(it)}</span>
-                  {it.category && <span className="chip" style={{ fontSize: '0.52rem' }}>{it.category}</span>}
-                  {/^.*credit/i.test(it.category || '') ? (
+                  <div style={{ display: 'grid', gap: 2 }}>
+                    <span className="display" style={{ fontSize: '1.15rem', lineHeight: 1 }}>{priceMain(it)}</span>
+                    {priceSub(it) && <span style={{ fontSize: '0.66rem', color: 'var(--faint)' }}>{priceSub(it)}</span>}
+                  </div>
+                  {isCredit(it) ? (
                     <button onClick={() => window.dispatchEvent(new CustomEvent('hs-buy-credits'))}
                       className="btn btn--volt" style={{ marginLeft: 'auto', padding: '8px 16px', fontSize: '0.7rem', cursor: 'pointer' }}>
                       Buy
@@ -155,7 +158,7 @@ export default function Shop() {
                       Buy
                     </a>
                   ) : (
-                    <span style={{ marginLeft: 'auto', fontSize: '0.6rem', color: 'var(--faint)' }}>In stores soon</span>
+                    <span style={{ marginLeft: 'auto', fontSize: '0.6rem', color: 'var(--faint)' }}>COMING SOON</span>
                   )}
                 </div>
               </div>

@@ -16,7 +16,7 @@ const PAYMONGO_SECRET = process.env.PAYMONGO_SECRET;
 // Columns used:  Item Name (label) · Price (pesos) · credits (number) · Active
 // Change a price = edit the cell. Add a pack = add a row. No code, no deploy.
 async function getPacks() {
-  const all = await atList(TABLES.MERCH, {});
+  const all = await atList(TABLES.MERCH, { view: "Grid view" });
   const rows = all.filter((r) => {
     const norm = (k) => String(k).toLowerCase().replace(/[^a-z0-9]/g, "");
     const map = {};
