@@ -148,7 +148,7 @@ const RESOURCES = {
   },
 
   merch: async () => {
-    const all = await atList(TABLES.MERCH, {});
+    const all = await atList(TABLES.MERCH, { view: "Grid view" });
     // filter in code so the column can be named Active / active / ACTIVE
     const rows = all.filter((r) => {
       const v = pick(r, "active", "Active");

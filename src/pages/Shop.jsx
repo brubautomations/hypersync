@@ -12,17 +12,12 @@ import { fetchData, getSession } from '../lib/api'
 export default function Shop() {
   const [items, setItems] = useState(null)
   const [artists, setArtists] = useState([])
-  const [packs, setPacks] = useState([])
   const [cat, setCat] = useState('ALL')
   const [who, setWho] = useState('ALL')
 
   useEffect(() => {
     fetchData('merch').then(setItems).catch(() => setItems([]))
     fetchData('artists').then(setArtists).catch(() => {})
-    fetch('/api/credits?action=packs')
-      .then(r => r.json())
-      .then(d => setPacks(Object.entries(d.packs || {}).map(([id, p]) => ({ id, ...p }))))
-      .catch(() => {})
   }, [])
 
   const artistId = useMemo(() => {
@@ -66,34 +61,17 @@ export default function Shop() {
       .catch(() => window.alert('Purchase failed'))
   }
 
-  const price = it => it.sell_via === 'hypersync'
-    ? `${Number(it.credits || it.price || 0).toLocaleString()} credits`
-    : (it.price != null && it.price !== '' ? `${it.currency || ''}${Number(it.price).toLocaleString()}` : '')
+  const price = (it) => {
+    const isCredit = /credit/i.test(it.category || '')
+    if (isCredit) return `${Number(it.credits || 0).toLocaleString()} credits — ₱${Number(it.price || 0).toLocaleString()}`
+    if (it.sell_via === 'hypersync') return `${Number(it.credits || it.price || 0).toLocaleString()} credits`
+    return it.price != null && it.price !== '' ? `${it.currency || ''}${Number(it.price).toLocaleString()}` : ''
+  }
 
   return (
     <div className="wrap section">
       <h1 className="display" style={{ fontSize: 'clamp(2.2rem, 7vw, 4rem)', marginBottom: 20 }}>SHOP</h1>
 
-      {/* ── CREDITS ── the platform currency, buyable here ── */}
-      {packs.length > 0 && (
-        <section style={{ marginBottom: 40 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14 }}>
-            <h2 className="display" style={{ fontSize: 'clamp(1.3rem, 3.5vw, 1.9rem)' }}>CREDITS</h2>
-
-          </div>
-          <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(min(88vw, 200px), 1fr))' }}>
-            {packs.map(p => (
-              <div key={p.id} className="card card--lift" style={{ padding: '22px 20px', textAlign: 'center', border: p.id === 'superfan' ? '1px solid rgba(255,212,0,0.4)' : undefined }}>
-                <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.16em', color: 'var(--faint)', textTransform: 'uppercase' }}>{p.label}</div>
-                <div className="display" style={{ fontSize: '2rem', color: 'var(--volt)', margin: '8px 0 2px' }}>{p.credits}</div>
-                <div style={{ fontSize: '0.64rem', color: 'var(--faint)', marginBottom: 14 }}>credits</div>
-                <a href={`/shop?buy=${p.id}`} onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('hs-buy-credits', { detail: p.id })) }}
-                  className="btn btn--volt" style={{ width: '100%' }}>₱{p.price}</a>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* filters */}
       {items && items.length > 0 && (
@@ -161,7 +139,12 @@ export default function Shop() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto', paddingTop: 8 }}>
                   <span className="display" style={{ fontSize: '1.05rem' }}>{price(it)}</span>
                   {it.category && <span className="chip" style={{ fontSize: '0.52rem' }}>{it.category}</span>}
-                  {it.sell_via === 'hypersync' ? (
+                  {/^.*credit/i.test(it.category || '') ? (
+                    <button onClick={() => window.dispatchEvent(new CustomEvent('hs-buy-credits'))}
+                      className="btn btn--volt" style={{ marginLeft: 'auto', padding: '8px 16px', fontSize: '0.7rem', cursor: 'pointer' }}>
+                      Buy
+                    </button>
+                  ) : it.sell_via === 'hypersync' ? (
                     <button onClick={() => buyWithCredits(it)}
                       className="btn btn--volt" style={{ marginLeft: 'auto', padding: '8px 16px', fontSize: '0.7rem', cursor: 'pointer' }}>
                       Buy
