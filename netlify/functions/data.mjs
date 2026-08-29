@@ -148,6 +148,8 @@ const RESOURCES = {
       currency: r["currency"] || "₱",
       category: r["category"] || "",
       buy_url: r["buy_url"] || "",
+      sell_via: r["sell_via"] || "store",
+      credits: Number(r["credits"]) || 0,
       featured: !!r["featured"],
     }));
   },

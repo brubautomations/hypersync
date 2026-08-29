@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { fetchData } from '../lib/api'
+import { fetchData, getSession } from '../lib/api'
 
 /* ============================================================
    SHOP — the fan-facing marketplace.
@@ -50,7 +50,25 @@ export default function Shop() {
     return [...list.filter(i => i.featured), ...list.filter(i => !i.featured)]
   }, [items, cat, who])
 
-  const price = it => (it.price != null && it.price !== '' ? `${it.currency || ''}${Number(it.price).toLocaleString()}` : '')
+  const buyWithCredits = (it) => {
+    const cost = Number(it.credits || it.price || 0)
+    if (!window.confirm(`Buy "${it.item_name}" for ${cost} credits?`)) return
+    fetch('/api/buy-merch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getSession()}` },
+      body: JSON.stringify({ merch_id: it.id }),
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) window.alert('Bought! The artist will be notified to fulfil your order.')
+        else window.alert(d.error || 'Purchase failed')
+      })
+      .catch(() => window.alert('Purchase failed'))
+  }
+
+  const price = it => it.sell_via === 'hypersync'
+    ? `${Number(it.credits || it.price || 0).toLocaleString()} credits`
+    : (it.price != null && it.price !== '' ? `${it.currency || ''}${Number(it.price).toLocaleString()}` : '')
 
   return (
     <div className="wrap section">
@@ -143,7 +161,12 @@ export default function Shop() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto', paddingTop: 8 }}>
                   <span className="display" style={{ fontSize: '1.05rem' }}>{price(it)}</span>
                   {it.category && <span className="chip" style={{ fontSize: '0.52rem' }}>{it.category}</span>}
-                  {it.buy_url ? (
+                  {it.sell_via === 'hypersync' ? (
+                    <button onClick={() => buyWithCredits(it)}
+                      className="btn btn--volt" style={{ marginLeft: 'auto', padding: '8px 16px', fontSize: '0.7rem', cursor: 'pointer' }}>
+                      Buy
+                    </button>
+                  ) : it.buy_url ? (
                     <a href={it.buy_url} target="_blank" rel="noopener noreferrer"
                       className="btn btn--volt" style={{ marginLeft: 'auto', padding: '8px 16px', fontSize: '0.7rem' }}>
                       Buy
