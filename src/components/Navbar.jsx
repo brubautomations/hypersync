@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useCredits } from '../context/CreditContext'
+import { BuyCreditsModal } from './modals'
 
 const LINKS = [
   { label: 'Home', path: '/' },
@@ -43,6 +44,12 @@ export default function Navbar() {
   const location = useLocation()
   const { user, isSignedIn, signOut } = useAuth()
   const { credits } = useCredits()
+  const [showBuy, setShowBuy] = useState(false)
+  useEffect(() => {
+    const open = () => setShowBuy(true)
+    window.addEventListener('hs-buy-credits', open)
+    return () => window.removeEventListener('hs-buy-credits', open)
+  }, [])
   const [showSignIn, setShowSignIn] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenu, setUserMenu] = useState(false)
@@ -124,7 +131,7 @@ export default function Navbar() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             {isSignedIn && (
-              <button className="chip chip--volt-line" title="Your credits">
+              <button className="chip chip--volt-line" title="Buy credits" onClick={() => setShowBuy(true)} style={{ cursor: 'pointer' }}>
                 <span className="sync-dot" />
                 {credits}
               </button>
@@ -262,6 +269,7 @@ export default function Navbar() {
       `}</style>
 
       {showSignIn && !isSignedIn && <SignInModal onClose={() => setShowSignIn(false)} />}
+      {showBuy && isSignedIn && <BuyCreditsModal onClose={() => setShowBuy(false)} />}
     </>
   )
 }

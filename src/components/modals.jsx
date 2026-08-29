@@ -45,15 +45,23 @@ export function SignInModal({ onClose, message = "Sign in to continue." }) {
 }
 
 // ── buy credits ──────────────────────────────────────────────
-// Display list mirrors server prices; server is the authority.
-const PACKS = [
-  { id: 'fan',      credits: 99,  price: 99,  label: 'Fan',      tag: 'Most popular' },
-  { id: 'superfan', credits: 199, price: 199, label: 'Superfan', tag: 'Best value' },
-]
+// Prices live in ONE place: credits.mjs. This screen just asks.
+const PACK_TAGS = { fan: 'Most popular', superfan: 'Best value' }
 
 export function BuyCreditsModal({ onClose }) {
   const { refresh } = useCredits()
   const [selected, setSelected] = useState('fan')
+  const [PACKS, setPacks] = useState([])
+  useEffect(() => {
+    fetch('/api/credits?action=packs')
+      .then(r => r.json())
+      .then(d => setPacks(
+        Object.entries(d.packs || {})
+          .filter(([id]) => id !== 'test')
+          .map(([id, p]) => ({ id, credits: p.credits, price: p.price, label: p.label[0] + p.label.slice(1).toLowerCase(), tag: PACK_TAGS[id] || '' }))
+      ))
+      .catch(() => {})
+  }, [])
   const [phase, setPhase] = useState('pick') // pick | paying
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)

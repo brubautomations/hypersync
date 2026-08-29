@@ -13,6 +13,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import SignInWall from './components/SignInWall'
 import Portal from './portal/Portal'
 import Messages from './pages/Messages'
+import Shop from './pages/Shop'
 
 // Phase 2–4 pages land here. Placeholder keeps routes stable meanwhile.
 function ComingSoon({ label }) {
@@ -66,7 +67,7 @@ function Shell() {
           <Route path="/feed" element={<Feed />} />
           <Route path="/messages" element={<SignInWall label="Your inbox"><Messages /></SignInWall>} />
           <Route path="/schedule" element={<SignInWall label="The schedule"><Schedule /></SignInWall>} />
-          <Route path="/shop" element={<SignInWall label="The shop"><ComingSoon label="Shop" /></SignInWall>} />
+          <Route path="/shop" element={<SignInWall label="The shop"><Shop /></SignInWall>} />
           <Route path="*" element={<ComingSoon label="Page" />} />
         </Routes>
       </ErrorBoundary>

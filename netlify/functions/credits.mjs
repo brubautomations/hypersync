@@ -12,13 +12,26 @@ import {
 
 const PAYMONGO_SECRET = process.env.PAYMONGO_SECRET;
 
-// Server-side price list — the client only ever sends a pack id.
-// 1 credit = ₱1, always.
-const PACKS = {
-  fan:      { credits: 99,  price: 99,  label: "FAN" },
-  superfan: { credits: 199, price: 199, label: "SUPERFAN" },
-  test:     { credits: 1,   price: 1,   label: "TEST" },
-};
+// Credit packs live in the MERCH table — rows where Category = "CREDITS".
+// Columns used:  Item Name (label) · Price (pesos) · credits (number) · Active
+// Change a price = edit the cell. Add a pack = add a row. No code, no deploy.
+async function getPacks() {
+  const rows = await atList(TABLES.MERCH, {
+    filterByFormula: `AND({Category}='CREDITS', {Active})`,
+    maxRecords: 20,
+  });
+  const packs = {};
+  for (const r of rows) {
+    const id = String(r["Item Name"] || "").trim().toLowerCase().replace(/\s+/g, "-");
+    if (!id) continue;
+    packs[id] = {
+      credits: Number(r["credits"]) || 0,
+      price: Number(r["Price"]) || 0,
+      label: r["Item Name"] || id,
+    };
+  }
+  return packs;
+}
 
 const pmHeaders = {
   Authorization: `Basic ${Buffer.from(PAYMONGO_SECRET + ":").toString("base64")}`,
@@ -46,6 +59,12 @@ export default async function handler(req) {
   const user = getSessionFromRequest(req);
   if (!user) return err("Sign in to continue", 401);
 
+  // ── packs (price list, from Airtable) ──────────────────────
+  if (action === "packs" && req.method === "GET") {
+    try { return json({ packs: await getPacks() }); }
+    catch { return err("Could not load packs", 502); }
+  }
+
   // ── balance ────────────────────────────────────────────────
   if (action === "balance" && req.method === "GET") {
     try {
@@ -60,7 +79,8 @@ export default async function handler(req) {
   if (action === "create" && req.method === "POST") {
     let body;
     try { body = await req.json(); } catch { return err("Bad request"); }
-    const pack = PACKS[body?.pack];
+    const packs = await getPacks();
+    const pack = packs[body?.pack];
     if (!pack) return err("Unknown pack");
 
     try {
