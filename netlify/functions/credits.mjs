@@ -16,9 +16,15 @@ const PAYMONGO_SECRET = process.env.PAYMONGO_SECRET;
 // Columns used:  Item Name (label) · Price (pesos) · credits (number) · Active
 // Change a price = edit the cell. Add a pack = add a row. No code, no deploy.
 async function getPacks() {
-  const rows = await atList(TABLES.MERCH, {
-    filterByFormula: `AND({Category}='PLATFORM CREDITS', {Active})`,
-    maxRecords: 20,
+  const all = await atList(TABLES.MERCH, {});
+  const rows = all.filter((r) => {
+    const norm = (k) => String(k).toLowerCase().replace(/[^a-z0-9]/g, "");
+    const map = {};
+    for (const k of Object.keys(r)) map[norm(k)] = r[k];
+    const cat = String(map["category"] || "").trim().toUpperCase();
+    const act = map["active"];
+    const isActive = act === true || act === 1 || act === "true" || act === "checked";
+    return cat.includes("CREDIT") && isActive;
   });
   const pick = (row, ...names) => {
     const norm = (k) => String(k).toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -67,14 +73,14 @@ async function getFanRecord(email) {
 export default async function handler(req) {
   const q = new URL(req.url).searchParams;
   const action = q.get("action");
-  const user = getSessionFromRequest(req);
-  if (!user) return err("Sign in to continue", 401);
-
   // ── packs (price list, from Airtable) ──────────────────────
   if (action === "packs" && req.method === "GET") {
     try { return json({ packs: await getPacks() }); }
     catch { return err("Could not load packs", 502); }
   }
+
+  const user = getSessionFromRequest(req);
+  if (!user) return err("Sign in to continue", 401);
 
   // ── balance ────────────────────────────────────────────────
   if (action === "balance" && req.method === "GET") {

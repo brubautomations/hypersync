@@ -148,8 +148,11 @@ const RESOURCES = {
   },
 
   merch: async () => {
-    const rows = await atList(TABLES.MERCH, {
-      filterByFormula: "{active}=1",
+    const all = await atList(TABLES.MERCH, {});
+    // filter in code so the column can be named Active / active / ACTIVE
+    const rows = all.filter((r) => {
+      const v = pick(r, "active", "Active");
+      return v === true || v === 1 || v === "true" || v === "checked";
     });
     return rows.map((r) => ({
       id: r.id,
