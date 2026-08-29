@@ -9,9 +9,35 @@ import {
 } from "./_shared.mjs";
 
 export default async function handler(req) {
-  if (req.method !== "POST") return err("Method not allowed", 405);
   const user = getSessionFromRequest(req);
   if (!user) return err("Sign in to continue", 401);
+
+  // ── GET: the fan's own inbox — their messages + artist replies ──
+  if (req.method === "GET") {
+    try {
+      const rows = await atList(TABLES.DMS, {
+        filterByFormula: `{Fan Email}='${esc(user.email)}'`,
+        maxRecords: 200,
+      });
+      const msgs = rows
+        .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+        .map(r => ({
+          id: r.id,
+          artist: r["Artist Name"] || "",
+          artist_id: r["Artist ID"] || "",
+          message: r["Message"] || "",
+          credits: r["Credits Spent"] || 0,
+          reply: r["Reply"] || "",
+          replied_at: r["Replied At"] || "",
+          created_at: r.created_at || "",
+        }));
+      return json({ messages: msgs });
+    } catch {
+      return err("Inbox temporarily unavailable", 502);
+    }
+  }
+
+  if (req.method !== "POST") return err("Method not allowed", 405);
 
   let body;
   try { body = await req.json(); } catch { return err("Bad request"); }
