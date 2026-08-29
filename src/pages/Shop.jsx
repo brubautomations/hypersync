@@ -61,7 +61,7 @@ export default function Shop() {
         <section style={{ marginBottom: 40 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14 }}>
             <h2 className="display" style={{ fontSize: 'clamp(1.3rem, 3.5vw, 1.9rem)' }}>CREDITS</h2>
-            <span style={{ fontSize: '0.68rem', color: 'var(--faint)' }}>message artists · unlock content · 1 credit = ₱1</span>
+
           </div>
           <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(min(88vw, 200px), 1fr))' }}>
             {packs.map(p => (
@@ -108,10 +108,7 @@ export default function Shop() {
         <div className="card" style={{ height: 160, opacity: 0.35 }} />
       ) : shown.length === 0 ? (
         <div className="card" style={{ padding: '48px 24px', textAlign: 'center' }}>
-          <div className="display" style={{ fontSize: '1.2rem', marginBottom: 8 }}>SHELVES ARE BEING STOCKED</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--faint)' }}>
-            Official artist merchandise lands here. Check back soon.
-          </div>
+          <div className="display" style={{ fontSize: '1.2rem' }}>COMING SOON</div>
         </div>
       ) : (
         <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fill, minmax(min(88vw, 240px), 1fr))' }}>

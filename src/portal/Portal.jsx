@@ -472,9 +472,7 @@ function EarningsRoom() {
         {stat('Paid out', data.paid + ' cr')}
         {stat('Available', data.available + ' cr', true)}
       </div>
-      <div style={{ fontSize: '0.68rem', color: 'var(--faint)' }}>
-        From {data.dm_count} paid messages · credits convert to cash at payout · HYPERSYNC keeps 10%
-      </div>
+      <div style={{ fontSize: '0.68rem', color: 'var(--faint)' }}></div>
 
       <form onSubmit={request} className="card" style={{ padding: '20px 22px', display: 'grid', gap: 12 }}>
         <div className="display" style={{ fontSize: '0.9rem', letterSpacing: '0.08em' }}>REQUEST PAYOUT</div>
@@ -622,7 +620,7 @@ function MarketRoom() {
       {items === null ? <div className="card" style={{ height: 100, opacity: 0.35 }} /> :
         items.length === 0 && !editing ? (
           <div className="card" style={{ padding: '30px 20px', color: 'var(--faint)', fontSize: '0.8rem', textAlign: 'center' }}>
-            Nothing listed. Add your first item and it appears on the fan shop.
+            COMING SOON
           </div>
         ) : (
           <div style={{ display: 'grid', gap: 10 }}>
@@ -663,10 +661,7 @@ function LiveRoom() {
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF3B5C' }} />
         <span style={{ fontSize: '0.66rem', fontWeight: 800, letterSpacing: '0.2em', color: '#FF6B85' }}>LIVE</span>
       </div>
-      <div className="display" style={{ fontSize: '1.5rem', marginBottom: 10 }}>GO LIVE TO YOUR FANS</div>
-      <div style={{ fontSize: '0.8rem', color: 'var(--dim)', maxWidth: 400, margin: '0 auto' }}>
-        Native livestreaming — straight from this portal to every fan on your page. Coming soon.
-      </div>
+      
     </div>
   )
 }

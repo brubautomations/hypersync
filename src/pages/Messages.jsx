@@ -25,7 +25,7 @@ export default function Messages() {
     <div className="wrap section" style={{ maxWidth: 760 }}>
       <h1 className="display" style={{ fontSize: 'clamp(2.2rem, 7vw, 4rem)', marginBottom: 6 }}>MESSAGES</h1>
       <p style={{ fontSize: '0.78rem', color: 'var(--faint)', marginBottom: 24 }}>
-        Your messages to artists — and their replies, right here when they answer.
+        
       </p>
 
       {msgs === null ? (
