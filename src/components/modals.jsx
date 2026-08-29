@@ -47,8 +47,8 @@ export function SignInModal({ onClose, message = "Sign in to continue." }) {
 // ── buy credits ──────────────────────────────────────────────
 // Display list mirrors server prices; server is the authority.
 const PACKS = [
-  { id: 'fan',      credits: 12, price: 99,  label: 'Fan',      tag: 'Most popular' },
-  { id: 'superfan', credits: 30, price: 199, label: 'Superfan', tag: 'Best value' },
+  { id: 'fan',      credits: 99,  price: 99,  label: 'Fan',      tag: 'Most popular' },
+  { id: 'superfan', credits: 199, price: 199, label: 'Superfan', tag: 'Best value' },
 ]
 
 export function BuyCreditsModal({ onClose }) {

@@ -13,10 +13,11 @@ import {
 const PAYMONGO_SECRET = process.env.PAYMONGO_SECRET;
 
 // Server-side price list — the client only ever sends a pack id.
+// 1 credit = ₱1, always.
 const PACKS = {
-  fan:      { credits: 12, price: 99,  label: "FAN" },
-  superfan: { credits: 30, price: 199, label: "SUPERFAN" },
-  test:     { credits: 5,  price: 1,   label: "TEST" },
+  fan:      { credits: 99,  price: 99,  label: "FAN" },
+  superfan: { credits: 199, price: 199, label: "SUPERFAN" },
+  test:     { credits: 1,   price: 1,   label: "TEST" },
 };
 
 const pmHeaders = {
