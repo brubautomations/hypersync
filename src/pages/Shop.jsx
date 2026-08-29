@@ -61,6 +61,22 @@ export default function Shop() {
       .catch(() => window.alert('Purchase failed'))
   }
 
+  const buyPack = async (it) => {
+    const packId = String(it.item_name || '').trim().toLowerCase().replace(/\s+/g, '-')
+    try {
+      const res = await fetch('/api/credits?action=create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getSession()}` },
+        body: JSON.stringify({ pack: packId }),
+      })
+      const d = await res.json()
+      if (d.checkout_url) window.location.href = d.checkout_url
+      else window.alert(d.error || 'Could not start checkout')
+    } catch {
+      window.alert('Could not start checkout')
+    }
+  }
+
   const isCredit = (it) => /credit/i.test(it.category || '')
   const priceMain = (it) => {
     if (isCredit(it)) return `${Number(it.credits || 0).toLocaleString()} credits`
@@ -143,7 +159,7 @@ export default function Shop() {
                     {priceSub(it) && <span style={{ fontSize: '0.66rem', color: 'var(--faint)' }}>{priceSub(it)}</span>}
                   </div>
                   {isCredit(it) ? (
-                    <button onClick={() => window.dispatchEvent(new CustomEvent('hs-buy-credits'))}
+                    <button onClick={() => buyPack(it)}
                       className="btn btn--volt" style={{ marginLeft: 'auto', padding: '8px 16px', fontSize: '0.7rem', cursor: 'pointer' }}>
                       Buy
                     </button>
