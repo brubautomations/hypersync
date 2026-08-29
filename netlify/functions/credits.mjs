@@ -17,17 +17,28 @@ const PAYMONGO_SECRET = process.env.PAYMONGO_SECRET;
 // Change a price = edit the cell. Add a pack = add a row. No code, no deploy.
 async function getPacks() {
   const rows = await atList(TABLES.MERCH, {
-    filterByFormula: `AND({Category}='CREDITS', {Active})`,
+    filterByFormula: `AND({Category}='PLATFORM CREDITS', {Active})`,
     maxRecords: 20,
   });
+  const pick = (row, ...names) => {
+    const norm = (k) => String(k).toLowerCase().replace(/[^a-z0-9]/g, "");
+    const map = {};
+    for (const k of Object.keys(row)) map[norm(k)] = row[k];
+    for (const n of names) {
+      const v = map[norm(n)];
+      if (v !== undefined && v !== null && v !== "") return v;
+    }
+    return undefined;
+  };
   const packs = {};
   for (const r of rows) {
-    const id = String(r["Item Name"] || "").trim().toLowerCase().replace(/\s+/g, "-");
+    const name = String(pick(r, "item_name", "Item Name") || "").trim();
+    const id = name.toLowerCase().replace(/\s+/g, "-");
     if (!id) continue;
     packs[id] = {
-      credits: Number(r["credits"]) || 0,
-      price: Number(r["Price"]) || 0,
-      label: r["Item Name"] || id,
+      credits: Number(pick(r, "credits", "Credits")) || 0,
+      price: Number(pick(r, "price", "Price")) || 0,
+      label: name,
     };
   }
   return packs;

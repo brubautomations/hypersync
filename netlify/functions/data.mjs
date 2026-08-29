@@ -5,6 +5,18 @@
 // ============================================================
 import { atList, TABLES, json, err } from "./_shared.mjs";
 
+// Airtable columns get renamed/recapitalised by humans; match loosely.
+const pick = (row, ...names) => {
+  const norm = (k) => String(k).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const map = {};
+  for (const k of Object.keys(row)) map[norm(k)] = row[k];
+  for (const n of names) {
+    const v = map[norm(n)];
+    if (v !== undefined && v !== null && v !== "") return v;
+  }
+  return undefined;
+};
+
 const CACHE = "public, max-age=0, s-maxage=120, stale-while-revalidate=300";
 
 const RESOURCES = {
@@ -141,16 +153,16 @@ const RESOURCES = {
     });
     return rows.map((r) => ({
       id: r.id,
-      artist_name: r["artist_name"] || "",
-      item_name: r["item_name"] || "",
-      image_url: r["image_url"] || "",
-      price: r["price"] || null,
-      currency: r["currency"] || "₱",
-      category: r["category"] || "",
-      buy_url: r["buy_url"] || "",
-      sell_via: r["sell_via"] || "store",
-      credits: Number(r["credits"]) || 0,
-      featured: !!r["featured"],
+      artist_name: pick(r, "artist_name", "Artist Name") || "",
+      item_name: pick(r, "item_name", "Item Name") || "",
+      image_url: pick(r, "image_url", "Image URL") || "",
+      price: pick(r, "price", "Price") ?? null,
+      currency: pick(r, "currency", "Currency") || "₱",
+      category: pick(r, "category", "Category") || "",
+      buy_url: pick(r, "buy_url", "Buy URL") || "",
+      sell_via: pick(r, "sell_via", "Sell Via") || "store",
+      credits: Number(pick(r, "credits", "Credits")) || 0,
+      featured: !!pick(r, "featured", "Featured"),
     }));
   },
 
