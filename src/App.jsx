@@ -14,6 +14,7 @@ import SignInWall from './components/SignInWall'
 import Portal from './portal/Portal'
 import Messages from './pages/Messages'
 import Shop from './pages/Shop'
+import Partners from './pages/Partners'
 
 // Phase 2–4 pages land here. Placeholder keeps routes stable meanwhile.
 function ComingSoon({ label }) {
@@ -65,6 +66,7 @@ function Shell() {
           <Route path="/artists" element={<Artists />} />
           <Route path="/artists/:id" element={<ArtistDetail />} />
           <Route path="/feed" element={<Feed />} />
+          <Route path="/partners" element={<Partners />} />
           <Route path="/messages" element={<SignInWall label="Your inbox"><Messages /></SignInWall>} />
           <Route path="/schedule" element={<SignInWall label="The schedule"><Schedule /></SignInWall>} />
           <Route path="/shop" element={<SignInWall label="The shop"><Shop /></SignInWall>} />
