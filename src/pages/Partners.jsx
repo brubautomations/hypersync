@@ -15,7 +15,6 @@ const COPY = {
     heroSub: "HYPERSYNC brings artist identity, news, schedules, releases, community, radio and direct fan participation into one continuously synchronized entertainment network. It is built around Asian music and open to global discovery.",
     ctaPrimary: "Become a HYPERSYNC partner",
     ctaSecondary: "Explore HYPERSYNC",
-    heroLine: "Come for the artist you know. Discover the ones you don't.",
     whyHead: "ONE ARTIST CAN OPEN THE DOOR TO AN ENTIRE SCENE.",
     whyBody: "Fans rarely discover music by geography. They discover through curiosity. A fan may arrive on HYPERSYNC to check an artist's news, tour dates or latest posts, then meet another artist they have never heard of, click through, listen, read, follow and stay.",
     whyBold: "That is the HYPERSYNC discovery loop. Familiar artists bring fans in, and the network introduces them to what comes next.",
@@ -59,13 +58,13 @@ const COPY = {
     ],
     finalA: "BRING YOUR ROSTER INTO ",
     finalB: "HYPERSYNC.",
-    finalBody: "Whether you represent one artist or an international roster, HYPERSYNC gives your team a direct place inside a network built for discovery, participation and continuous artist activity.",
+    finalBody: "HYPERSYNC connects your team to a global network built for artist discovery and collaboration.",
     formName: "Name",
     formOrg: "Agency, label or management",
     formArtist: "Artist or roster",
     formEmail: "Email",
     formMessage: "Message",
-    tagline: "Asian at the center. Global by design.",
+    tagline: "TUNE IN TO EVERYTHING",
   },
 
   ko: {
@@ -76,7 +75,6 @@ const COPY = {
     heroSub: "HYPERSYNC는 아티스트 정보, 뉴스, 일정, 발매, 커뮤니티, 라디오, 그리고 팬과의 직접적인 접점을 하나의 네트워크로 통합해 지속적으로 동기화합니다. 아시아 음악을 중심에 두면서도 글로벌한 발견에 열려 있습니다.",
     ctaPrimary: "HYPERSYNC 파트너 신청",
     ctaSecondary: "HYPERSYNC 둘러보기",
-    heroLine: "아는 아티스트를 통해 들어오고, 모르던 아티스트를 발견합니다.",
     whyHead: "한 아티스트가 하나의 씬 전체로 가는 문을 열 수 있습니다.",
     whyBody: "팬은 지역을 기준으로 음악을 찾지 않습니다. 호기심을 따라 찾습니다. 특정 아티스트의 뉴스나 공연 일정, 최신 게시물을 보러 들어온 팬이 들어본 적 없는 다른 아티스트를 만나 클릭하고, 듣고, 읽고, 팔로우하고, 그대로 머무릅니다.",
     whyBold: "이것이 HYPERSYNC의 발견 구조입니다. 익숙한 아티스트가 팬을 데려오고, 네트워크가 그 다음을 소개합니다.",
@@ -120,13 +118,13 @@ const COPY = {
     ],
     finalA: "소속 아티스트를 ",
     finalB: "HYPERSYNC로.",
-    finalBody: "한 팀이든 다국적 로스터든, HYPERSYNC는 발견과 참여, 지속적인 아티스트 활동을 위해 만든 네트워크 안에 귀사 팀의 자리를 마련합니다.",
+    finalBody: "HYPERSYNC는 아티스트 발견과 협업을 위해 만든 글로벌 네트워크에 귀사 팀을 연결합니다.",
     formName: "성함",
     formOrg: "기획사, 레이블 또는 매니지먼트",
     formArtist: "아티스트 또는 로스터",
     formEmail: "이메일",
     formMessage: "문의 내용",
-    tagline: "아시아를 중심에, 설계는 글로벌하게.",
+    tagline: "TUNE IN TO EVERYTHING",
   },
 
   ja: {
@@ -137,7 +135,6 @@ const COPY = {
     heroSub: "HYPERSYNCは、アーティスト情報、ニュース、スケジュール、リリース、コミュニティ、ラジオ、ファンとの直接的な接点をひとつのネットワークにまとめ、継続的に同期します。アジアの音楽を軸にしながら、グローバルな発見にも開かれています。",
     ctaPrimary: "HYPERSYNCパートナーに申し込む",
     ctaSecondary: "HYPERSYNCを見る",
-    heroLine: "知っているアーティストから入り、まだ知らないアーティストと出会う。",
     whyHead: "ひと組のアーティストが、シーン全体への入り口になります。",
     whyBody: "ファンは地域で音楽を見つけるわけではありません。きっかけは好奇心です。あるアーティストのニュースやツアー日程、最新の投稿を見に来たファンが、名前も知らなかったアーティストに出会い、クリックし、聴き、読み、フォローして、そのまま留まります。",
     whyBold: "これがHYPERSYNCの発見のループです。馴染みのあるアーティストがファンを呼び込み、ネットワークが次の出会いを差し出します。",
@@ -181,13 +178,13 @@ const COPY = {
     ],
     finalA: "所属アーティストを ",
     finalB: "HYPERSYNCへ。",
-    finalBody: "ひと組でも、国際的なロスターでも、HYPERSYNCは発見と参加、そして継続的なアーティスト活動のために作ったネットワークの中に、チームの居場所を用意します。",
+    finalBody: "HYPERSYNCは、アーティストの発見とコラボレーションのために作られたグローバルネットワークに、あなたのチームをつなぎます。",
     formName: "お名前",
     formOrg: "事務所、レーベルまたはマネジメント",
     formArtist: "アーティスト名またはロスター",
     formEmail: "メールアドレス",
     formMessage: "ご用件",
-    tagline: "アジアを中心に。設計はグローバルに。",
+    tagline: "TUNE IN TO EVERYTHING",
   },
 }
 
@@ -262,7 +259,6 @@ export default function Partners() {
             {t.ctaSecondary}
           </Link>
         </div>
-        <p style={{ marginTop: 26, fontSize: '0.86rem', color: 'var(--faint)' }}>{t.heroLine}</p>
       </section>
 
       <hr style={{ height: 1, background: 'var(--line)', border: 0, margin: 0 }} />
