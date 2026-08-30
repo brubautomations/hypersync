@@ -87,15 +87,15 @@ const COPY = {
       ["HYPERSYNC 라디오", "아티스트, 시대, 씬, 지역을 넘나들도록 편성한 24시간 방송이자 자체 미디어입니다."],
       ["커머스·직접 소통", "파트너 기능을 통해 공식 게시물, 메시지, 상품 등 아티스트가 관리하는 경험으로 팬을 연결합니다."]
     ],
-    partnerHead: "소개되는 아티스트에서, 공식 파트너로",
+    partnerHead: "단순 소개를 넘어, 공식 파트너로",
     partnerSub: "HYPERSYNC는 이미 네트워크 전반에서 아티스트 관련 공개 정보를 수집하고 정리하고 있을 수 있습니다. 파트너십은 아티스트와 승인된 팀에게 그 존재를 직접 운영할 권한을 드립니다.",
     partnership: [
       ["공식 관리 권한", "프로필 정보와 승인된 아티스트 정보를 직접 관리합니다."],
       ["직접 게시", "소식, 미디어, 공지를 팬에게 바로 게시합니다."],
       ["팬 접점", "아티스트 토론과 직접 소통 기능에 참여합니다."],
       ["커머셜 액세스", "마켓플레이스, 메시징, 수익화 기능을 계정에서 사용 가능해지는 시점부터 이용합니다."],
-      ["미디어 참여", "HYPERSYNC 라디오와 네트워크 편성 기회에 함께합니다."],
-      ["발견 노출", "기존 팬뿐 아니라 다른 아티스트와 씬을 통해 들어온 이용자에게도 노출됩니다."]
+      ["미디어 연계", "HYPERSYNC 라디오와 네트워크 편성 기회에 함께합니다."],
+      ["디스커버리 노출", "기존 팬뿐 아니라 다른 아티스트와 씬을 통해 들어온 이용자에게도 노출됩니다."]
     ],
     discoveryHead: "이미 함께하는 팬, 아직 만나지 못한 팬",
     discoveryBody: "HYPERSYNC는 아티스트가 발견될 수 있는 접점을 늘리도록 설계되었습니다. K-pop 팬이 P-pop을 접하고, P-pop 팬이 카자흐 랩을 찾고, 일본 음악 팬이 호주 아티스트에 닿습니다. 목표는 여러 씬을 하나의 장르로 묶는 것이 아니라, 그 경계를 더 쉽게 넘도록 만드는 것입니다.",
@@ -157,7 +157,7 @@ const COPY = {
       ["メディア連携", "HYPERSYNC RADIOやネットワーク編成の機会と連携します。"],
       ["発見される導線", "既存のファンだけでなく、他のアーティストやシーンから入ってきた人にも表示されます。"]
     ],
-    discoveryHead: "すでにいるファンと、まだ出会っていないファン",
+    discoveryHead: "今いるファンと、まだ出会っていないファン",
     discoveryBody: "HYPERSYNCは、アーティストが見つかる場所の数を増やすように設計しています。K-POPのファンがP-POPに出会い、P-POPのファンがカザフのラップを見つけ、日本の音楽ファンがオーストラリアのアーティストにたどり着きます。目的はシーンをひとつのジャンルにまとめることではありません。その境界を越えやすくすることです。",
     systemHead: "動き続けるネットワーク",
     systemBody: "公開されている画面の裏側で、HYPERSYNCはエンターテインメントニュースの整理、アーティスト活動の確認、スケジュールの維持、指標の更新、アーティスト情報の同期を行うシステムを常時動かしています。繰り返しの保守は自動化が担い、正確さが求められる部分には確認と編集の管理を残しています。",
@@ -212,6 +212,17 @@ function Eyebrow({ children }) {
   )
 }
 
+// Japanese headlines break between clauses, never inside one. Splitting on
+// the ideographic comma keeps 〜へ and 〜なる attached to their own clause.
+function JaHead({ text }) {
+  const parts = String(text).split('、')
+  return parts.map((p, i) => (
+    <span key={i} style={{ whiteSpace: 'nowrap' }}>
+      {p}{i < parts.length - 1 ? '、' : ''}
+    </span>
+  ))
+}
+
 function SectionHead({ children, sub, lang }) {
   return (
     <>
@@ -219,7 +230,7 @@ function SectionHead({ children, sub, lang }) {
         fontSize: 'clamp(1.6rem, 4.5vw, 2.8rem)', lineHeight: 1.08,
         maxWidth: 900, marginBottom: sub ? 16 : 28,
         ...breakStyle(lang),
-      }}>{children}</h2>
+      }}>{lang === 'ja' && typeof children === 'string' ? <JaHead text={children} /> : children}</h2>
       {sub ? (
         <p style={{
           color: 'var(--dim)', fontSize: '0.95rem', lineHeight: 1.8,
@@ -257,7 +268,9 @@ export default function Partners() {
           fontSize: 'clamp(2.1rem, 7vw, 4.6rem)', lineHeight: 1.03, maxWidth: 1000,
           ...breakStyle(lang),
         }}>
-          {t.heroA}{lang === 'en' ? null : <br />}<span className="volt-text">{t.heroB}</span>
+          {lang === 'ja' ? <JaHead text={t.heroA} /> : t.heroA}
+          {lang === 'en' ? null : <br />}
+          <span className="volt-text" style={lang === 'ja' ? { whiteSpace: 'nowrap' } : undefined}>{t.heroB}</span>
         </h1>
         <p style={{
           color: 'var(--dim)', fontSize: 'clamp(0.95rem, 2vw, 1.1rem)',
@@ -293,8 +306,8 @@ export default function Partners() {
         <SectionHead lang={lang}>{t.networkHead}</SectionHead>
         <div style={{
           display: 'grid', gap: 1, background: 'var(--line)',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(90vw, 300px), 1fr))',
-        }}>
+          gridTemplateColumns: 'repeat(3, 1fr)',
+        }} className="grid-3">
           {t.network.map(([title, bodyText]) => (
             <div key={title} style={{ background: 'var(--ink, #0C0C11)', padding: 'clamp(22px, 3vw, 32px)' }}>
               <div style={{ fontWeight: 800, fontSize: '0.98rem', marginBottom: 10 }}>{title}</div>
@@ -368,8 +381,8 @@ export default function Partners() {
         <SectionHead lang={lang}>{t.onboardHead}</SectionHead>
         <div style={{
           display: 'grid', gap: 1, background: 'var(--line)',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(90vw, 240px), 1fr))',
-        }}>
+          gridTemplateColumns: 'repeat(4, 1fr)',
+        }} className="grid-4">
           {t.onboarding.map(([title, bodyText], i) => (
             <div key={title} style={{ background: 'var(--ink, #0C0C11)', padding: 'clamp(22px, 3vw, 30px)' }}>
               <div className="display" style={{ fontSize: '1.6rem', color: 'var(--volt)', marginBottom: 12 }}>
@@ -392,7 +405,7 @@ export default function Partners() {
             fontSize: 'clamp(1.8rem, 5.5vw, 3.4rem)', lineHeight: 1.05, marginBottom: 20,
             ...breakStyle(lang),
           }}>
-            {t.finalA}<span className="volt-text">{t.finalB}</span>
+            {t.finalA}<span className="volt-text" style={lang === 'ja' ? { whiteSpace: 'nowrap' } : undefined}>{t.finalB}</span>
           </h2>
           <p style={{
             color: 'var(--dim)', fontSize: '0.95rem', lineHeight: 1.8,
@@ -420,6 +433,15 @@ export default function Partners() {
           </p>
         </div>
       </section>
+      <style>{`
+        @media (max-width: 900px) {
+          .grid-3 { grid-template-columns: repeat(2, 1fr) !important; }
+          .grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        @media (max-width: 560px) {
+          .grid-3, .grid-4 { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   )
 }
