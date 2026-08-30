@@ -53,6 +53,7 @@ export default function Radio() {
   const [err, setErr] = useState("");
   const [tick, setTick] = useState(0);
   const audio = useRef(null);
+  const liveRef = useRef(false);
 
   /* ---------- the schedule, for art and times ---------- */
   useEffect(() => {
@@ -98,6 +99,8 @@ export default function Radio() {
     return () => clearInterval(id);
   }, []);
 
+  liveRef.current = live;
+
   useEffect(() => { if (audio.current) audio.current.volume = vol; }, [vol]);
 
   /* ---------- tune in ---------- */
@@ -112,9 +115,15 @@ export default function Radio() {
       return;
     }
     // cache-buster so we always join the live edge rather than a stale copy
+    setErr("");
     a.src = `${CFG.STREAM}?t=${Date.now()}`;
     a.volume = vol;
-    a.play().then(() => setLive(true)).catch((e) => setErr(e.message || "Could not start playback"));
+    a.play()
+      .then(() => setLive(true))
+      .catch((e) => {
+        if (e && e.name === "AbortError") return;   // superseded by another tap
+        setErr(e.message || "Could not start playback");
+      });
   }, [live, vol]);
 
   /* ---------- lock screen ---------- */
@@ -144,36 +153,66 @@ export default function Radio() {
     set("previoustrack", null); set("nexttrack", null);
   }, [live, toggle]);
 
-  /* ---------- a dropped stream should pick itself back up ---------- */
+  /* ---------- a dropped stream should pick itself back up ----------
+     iOS pauses us whenever another app takes the audio — a video in
+     Instagram, a call, the phone locking oddly. Recovery has to be ONE
+     attempt at a time: several racing each other cancel one another and
+     the whole thing wedges with "the operation was aborted". */
+  const rejoining = useRef(false);
+
+  const rejoin = useCallback(async () => {
+    const a = audio.current;
+    if (!a || !liveRef.current || rejoining.current) return;
+    rejoining.current = true;
+    try {
+      a.src = `${CFG.STREAM}?t=${Date.now()}`;
+      await a.play();
+      setErr("");
+    } catch {
+      // iOS often refuses to resume without a tap. Whatever the reason, a
+      // failed recovery must leave the button saying TUNE IN — otherwise it
+      // says STOP over silence, and tapping it stops a stream that isn't
+      // playing. Only one recovery runs at a time, so this is never a
+      // benign "superseded by the next attempt" case.
+      setLive(false);
+      setErr("Tap TUNE IN to start again");
+    } finally {
+      rejoining.current = false;
+    }
+  }, []);
+
   useEffect(() => {
     const a = audio.current;
     if (!a) return;
-    let retry = null;
-    const rejoin = () => {
-      if (!live) return;
-      clearTimeout(retry);
-      retry = setTimeout(() => {
-        a.src = `${CFG.STREAM}?t=${Date.now()}`;
-        a.play().catch(() => {});
-      }, 1500);
+    let timer = null;
+    const soon = () => {
+      if (!liveRef.current) return;
+      clearTimeout(timer);
+      timer = setTimeout(rejoin, 1200);
     };
-    a.addEventListener("error", rejoin);
-    a.addEventListener("stalled", rejoin);
-    a.addEventListener("ended", rejoin);
+    // `pause` covers the interruption case; the others cover a dropped
+    // connection. All of them funnel into the same single attempt.
+    const onPause = () => { if (liveRef.current && !rejoining.current) soon(); };
+    a.addEventListener("pause", onPause);
+    a.addEventListener("error", soon);
+    a.addEventListener("stalled", soon);
+    a.addEventListener("ended", soon);
     const wake = () => {
-      if (live && a.paused) { a.src = `${CFG.STREAM}?t=${Date.now()}`; a.play().catch(() => {}); }
+      if (document.visibilityState === "hidden") return;
+      if (liveRef.current && a.paused) rejoin();
     };
     document.addEventListener("visibilitychange", wake);
     window.addEventListener("focus", wake);
     return () => {
-      clearTimeout(retry);
-      a.removeEventListener("error", rejoin);
-      a.removeEventListener("stalled", rejoin);
-      a.removeEventListener("ended", rejoin);
+      clearTimeout(timer);
+      a.removeEventListener("pause", onPause);
+      a.removeEventListener("error", soon);
+      a.removeEventListener("stalled", soon);
+      a.removeEventListener("ended", soon);
       document.removeEventListener("visibilitychange", wake);
       window.removeEventListener("focus", wake);
     };
-  }, [live]);
+  }, [rejoin]);
 
   /* ---------- which show is on ---------- */
   const t = new Date(Date.now() + (8 * 60 + new Date().getTimezoneOffset()) * 60000);
