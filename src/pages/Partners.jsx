@@ -223,6 +223,16 @@ function JaHead({ text }) {
   ))
 }
 
+// English headlines: bind the final two words so a line never ends on a
+// single orphaned word.
+function EnHead({ text }) {
+  const w = String(text).trim().split(' ')
+  if (w.length < 3) return text
+  const head = w.slice(0, -2).join(' ')
+  const tail = w.slice(-2).join('\u00A0')
+  return `${head} ${tail}`
+}
+
 function SectionHead({ children, sub, lang }) {
   return (
     <>
@@ -230,7 +240,11 @@ function SectionHead({ children, sub, lang }) {
         fontSize: 'clamp(1.6rem, 4.5vw, 2.8rem)', lineHeight: 1.08,
         maxWidth: 900, marginBottom: sub ? 16 : 28,
         ...breakStyle(lang),
-      }}>{lang === 'ja' && typeof children === 'string' ? <JaHead text={children} /> : children}</h2>
+      }}>{
+        lang === 'ja' && typeof children === 'string' ? <JaHead text={children} />
+        : lang === 'en' && typeof children === 'string' ? EnHead({ text: children })
+        : children
+      }</h2>
       {sub ? (
         <p style={{
           color: 'var(--dim)', fontSize: '0.95rem', lineHeight: 1.8,
@@ -365,8 +379,8 @@ export default function Partners() {
         <SectionHead lang={lang}>{t.termsHead}</SectionHead>
         <div style={{
           display: 'grid', gap: 12,
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(90vw, 330px), 1fr))',
-        }}>
+          gridTemplateColumns: 'repeat(2, 1fr)',
+        }} className="grid-2">
           {t.terms.map(([title, bodyText]) => (
             <div key={title} className="card" style={{ padding: 'clamp(20px, 3vw, 28px)' }}>
               <div style={{ fontWeight: 800, fontSize: '0.92rem', marginBottom: 10, lineHeight: 1.4 }}>{title}</div>
@@ -439,7 +453,7 @@ export default function Partners() {
           .grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
         }
         @media (max-width: 560px) {
-          .grid-3, .grid-4 { grid-template-columns: 1fr !important; }
+          .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>
