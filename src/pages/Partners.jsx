@@ -10,7 +10,7 @@ const COPY = {
   en: {
     lang: "EN",
     eyebrow: "For artists, labels, agencies and management",
-    heroA: "PUT YOUR ARTISTS INSIDE A",
+    heroA: "PUT YOUR ARTISTS INSIDE A ",
     heroB: "LIVING MUSIC NETWORK",
     heroSub: "HYPERSYNC brings artist identity, news, schedules, releases, community, radio and direct fan participation into one continuously synchronized entertainment network. It is built around Asian music and open to global discovery.",
     ctaPrimary: "Become a HYPERSYNC partner",
@@ -56,7 +56,7 @@ const COPY = {
       ["Partner access", "The authorized team receives access to the artist-side workspace and available controls."],
       ["Go official", "The artist's presence becomes an official participant in the HYPERSYNC network."]
     ],
-    finalA: "BRING YOUR ROSTER INTO",
+    finalA: "BRING YOUR ROSTER INTO ",
     finalB: "HYPERSYNC",
     finalBody: "HYPERSYNC connects your team to a global network built for artist discovery and collaboration.",
     formName: "Name",
@@ -70,24 +70,24 @@ const COPY = {
   ko: {
     lang: "한국어",
     eyebrow: "아티스트, 레이블, 기획사, 매니지먼트를 위한 안내",
-    heroA: "살아 움직이는 음악 네트워크 안에",
-    heroB: "아티스트를 배치하십시오",
-    heroSub: "HYPERSYNC는 아티스트 정보, 뉴스, 일정, 발매, 커뮤니티, 라디오, 그리고 팬과의 직접적인 접점을 하나의 네트워크로 통합해 지속적으로 동기화합니다. 아시아 음악을 중심에 두면서도 글로벌한 발견에 열려 있습니다.",
+    heroA: "살아 움직이는 음악 네트워크로 ",
+    heroB: "아티스트를 초대하세요",
+    heroSub: "HYPERSYNC는 아티스트 정보, 뉴스, 일정, 발매, 커뮤니티, 라디오, 팬과의 직접 소통을 하나의 네트워크로 연결하고 계속 최신 상태로 유지합니다. 아시아 음악을 중심에 두되, 발견의 범위는 전 세계로 확장됩니다.",
     ctaPrimary: "HYPERSYNC 파트너 신청",
     ctaSecondary: "HYPERSYNC 둘러보기",
-    whyHead: "한 아티스트가 하나의 씬 전체로 가는 문을 열 수 있습니다",
+    whyHead: "한 아티스트가 새로운 음악 씬 전체로 이어지는 시작점이 됩니다",
     whyBody: "팬은 지역을 기준으로 음악을 찾지 않습니다. 호기심을 따라 찾습니다. 특정 아티스트의 뉴스나 공연 일정, 최신 게시물을 보러 들어온 팬이 들어본 적 없는 다른 아티스트를 만나 클릭하고, 듣고, 읽고, 팔로우하고, 그대로 머무릅니다.",
     whyBold: "이것이 HYPERSYNC의 발견 구조입니다. 익숙한 아티스트가 팬을 데려오고, 네트워크가 그 다음을 소개합니다.",
     networkHead: "아티스트 페이지 그 이상입니다",
     network: [
       ["아티스트 허브", "아티스트 정보, 공식 링크, 뉴스, 활동, 게시물, 토론, 팬 접점이 한곳에 모이는 상시 공간입니다."],
       ["뉴스와 활동", "엔터테인먼트 뉴스, 발매, 출연, 콘서트, 투어 활동을 아티스트별 타임라인으로 계속 정리합니다."],
-      ["발견", "다른 씬과 시장의 아티스트와 나란히 노출되어, 검색만으로는 만들 수 없는 팬덤 간 교차 노출이 일어납니다."],
+      ["새로운 발견", "다른 씬과 시장의 아티스트와 나란히 노출되어, 검색만으로는 만들 수 없는 팬덤 간 교차 노출이 일어납니다."],
       ["커뮤니티", "네트워크 전체 대화와 아티스트별 토론을 통해 컴백 사이에도 팬덤 활동이 이어집니다."],
       ["HYPERSYNC 라디오", "아티스트, 시대, 씬, 지역을 넘나들도록 편성한 24시간 방송이자 자체 미디어입니다."],
-      ["커머스와 다이렉트 액세스", "파트너 기능을 통해 공식 게시물, 메시지, 상품 등 아티스트가 관리하는 경험으로 팬을 연결합니다."]
+      ["커머스·직접 소통", "파트너 기능을 통해 공식 게시물, 메시지, 상품 등 아티스트가 관리하는 경험으로 팬을 연결합니다."]
     ],
-    partnerHead: "커버되는 아티스트에서 공식 참여자로",
+    partnerHead: "소개되는 아티스트에서, 공식 파트너로",
     partnerSub: "HYPERSYNC는 이미 네트워크 전반에서 아티스트 관련 공개 정보를 수집하고 정리하고 있을 수 있습니다. 파트너십은 아티스트와 승인된 팀에게 그 존재를 직접 운영할 권한을 드립니다.",
     partnership: [
       ["공식 관리 권한", "프로필 정보와 승인된 아티스트 정보를 직접 관리합니다."],
@@ -97,12 +97,12 @@ const COPY = {
       ["미디어 참여", "HYPERSYNC 라디오와 네트워크 편성 기회에 함께합니다."],
       ["발견 노출", "기존 팬뿐 아니라 다른 아티스트와 씬을 통해 들어온 이용자에게도 노출됩니다."]
     ],
-    discoveryHead: "이미 함께하는 팬, 그리고 아직 만나지 못한 팬",
+    discoveryHead: "이미 함께하는 팬, 아직 만나지 못한 팬",
     discoveryBody: "HYPERSYNC는 아티스트가 발견될 수 있는 접점을 늘리도록 설계되었습니다. K-pop 팬이 P-pop을 접하고, P-pop 팬이 카자흐 랩을 찾고, 일본 음악 팬이 호주 아티스트에 닿습니다. 목표는 여러 씬을 하나의 장르로 묶는 것이 아니라, 그 경계를 더 쉽게 넘도록 만드는 것입니다.",
     systemHead: "계속 움직이는 네트워크",
     systemBody: "공개된 화면 뒤에서 HYPERSYNC는 엔터테인먼트 뉴스를 정리하고, 아티스트 활동을 확인하고, 일정을 유지하고, 선별된 지표를 갱신하며, 아티스트 정보를 동기화하는 시스템을 상시 운영합니다. 반복되는 유지 작업은 자동화가 맡고, 정확성이 중요한 부분에는 검증과 편집 관리를 유지합니다.",
     systemBold: "파트너 입장에서는, 아티스트의 활동이 바뀔 때마다 누군가 페이지를 수동으로 다시 만들 필요가 없다는 뜻입니다.",
-    termsHead: "플랫폼 임대료 없는 파트너십",
+    termsHead: "플랫폼 이용료 없는 파트너십",
     terms: [
       ["플랫폼 구독료 없음", "공식 파트너 지위를 유지하기 위한 정기 비용이 없습니다."],
       ["유료 메시지 수익의 90%는 아티스트에게", "유료 메시지를 운영하는 경우 아티스트가 90%를 가져가고 HYPERSYNC가 10%를 보유합니다."],
@@ -116,7 +116,7 @@ const COPY = {
       ["파트너 권한 부여", "승인된 팀이 아티스트 전용 워크스페이스와 사용 가능한 관리 기능을 받습니다."],
       ["공식 전환", "해당 아티스트가 HYPERSYNC 네트워크의 공식 참여자가 됩니다."]
     ],
-    finalA: "소속 아티스트를",
+    finalA: "소속 아티스트를 ",
     finalB: "HYPERSYNC로",
     finalBody: "HYPERSYNC는 아티스트 발견과 협업을 위해 만든 글로벌 네트워크에 귀사 팀을 연결합니다.",
     formName: "성함",
@@ -130,31 +130,31 @@ const COPY = {
   ja: {
     lang: "日本語",
     eyebrow: "アーティスト、レーベル、事務所、マネジメントの皆様へ",
-    heroA: "動き続ける音楽ネットワークの中に",
-    heroB: "アーティストを",
+    heroA: "アーティストを、",
+    heroB: "動き続ける音楽ネットワークへ",
     heroSub: "HYPERSYNCは、アーティスト情報、ニュース、スケジュール、リリース、コミュニティ、ラジオ、ファンとの直接的な接点をひとつのネットワークにまとめ、継続的に同期します。アジアの音楽を軸にしながら、グローバルな発見にも開かれています。",
     ctaPrimary: "HYPERSYNCパートナーに申し込む",
     ctaSecondary: "HYPERSYNCを見る",
-    whyHead: "ひと組のアーティストが、シーン全体への入り口になります",
-    whyBody: "ファンは地域で音楽を見つけるわけではありません。きっかけは好奇心です。あるアーティストのニュースやツアー日程、最新の投稿を見に来たファンが、名前も知らなかったアーティストに出会い、クリックし、聴き、読み、フォローして、そのまま留まります。",
-    whyBold: "これがHYPERSYNCの発見のループです。馴染みのあるアーティストがファンを呼び込み、ネットワークが次の出会いを差し出します。",
-    networkHead: "アーティストページ以上のものを",
+    whyHead: "あるアーティストとの出会いが、シーン全体への入口になる",
+    whyBody: "ファンは地域で音楽を探しているわけではありません。きっかけは、好奇心です。好きなアーティストのニュースやツアー情報を見に来たファンが、知らなかったアーティストに出会い、聴き、フォローし、また戻ってくる。",
+    whyBold: "これがHYPERSYNCのディスカバリーループです。知っているアーティストが入口になり、ネットワークが次の出会いにつなげます。",
+    networkHead: "アーティストページの、その先へ",
     network: [
       ["アーティストハブ", "アーティスト情報、公式リンク、ニュース、活動、投稿、ディスカッション、ファンとの接点が集まる常設の拠点です。"],
       ["ニュースと活動", "エンターテインメントニュース、リリース、出演、コンサート、ツアー活動を、アーティストごとのタイムラインとして整理し続けます。"],
       ["ディスカバリー", "他のシーンや市場のアーティストと並んで表示され、検索だけでは生まれないファンダム間の露出が生まれます。"],
       ["コミュニティ", "ネットワーク全体の会話とアーティスト別のディスカッションにより、リリースの合間もファンダムが動き続けます。"],
       ["HYPERSYNC RADIO", "アーティスト、時代、シーン、地域を横断するように編成した24時間放送であり、自社メディアです。"],
-      ["コマースとダイレクトアクセス", "パートナー向け機能で、公式投稿、メッセージ、グッズなどアーティスト側が管理する体験へファンをつなぎます。"]
+      ["コマース＆ダイレクトコミュニケーション", "パートナー向け機能で、公式投稿、メッセージ、グッズなどアーティスト側が管理する体験へファンをつなぎます。"]
     ],
-    partnerHead: "掲載されるアーティストから、公式な参加者へ",
+    partnerHead: "掲載アーティストから、公式パートナーへ",
     partnerSub: "HYPERSYNCはすでに、ネットワーク全体でアーティストに関する公開情報を集めて整理している場合があります。パートナーシップは、アーティストと承認されたチームに、その存在を自ら運用する権限をもたらします。",
     partnership: [
       ["公式な管理権限", "プロフィール情報と承認済みのアーティスト情報を管理します。"],
       ["ダイレクト配信", "最新情報、メディア、告知をファンへ直接投稿します。"],
       ["ファンとの接点", "アーティストのディスカッションや直接的な交流機能に参加します。"],
       ["コマース機能", "マーケットプレイス、メッセージ、収益化ツールを、アカウントで利用可能になり次第ご利用いただけます。"],
-      ["メディア参加", "HYPERSYNC RADIOやネットワーク編成の機会と連携します。"],
+      ["メディア連携", "HYPERSYNC RADIOやネットワーク編成の機会と連携します。"],
       ["発見される導線", "既存のファンだけでなく、他のアーティストやシーンから入ってきた人にも表示されます。"]
     ],
     discoveryHead: "すでにいるファンと、まだ出会っていないファン",
@@ -188,6 +188,14 @@ const COPY = {
   },
 }
 
+// Korean: never split a word across lines. Japanese: allow breaks but keep
+// the line from ending on a single orphaned character.
+const breakStyle = (lang) => (
+  lang === 'ko' ? { wordBreak: 'keep-all', overflowWrap: 'break-word' }
+  : lang === 'ja' ? { lineBreak: 'strict', overflowWrap: 'anywhere' }
+  : {}
+)
+
 const inputStyle = {
   width: '100%', padding: '13px 15px', borderRadius: 10,
   border: '1px solid var(--line)', background: 'var(--panel)',
@@ -204,12 +212,13 @@ function Eyebrow({ children }) {
   )
 }
 
-function SectionHead({ children, sub }) {
+function SectionHead({ children, sub, lang }) {
   return (
     <>
       <h2 className="display" style={{
         fontSize: 'clamp(1.6rem, 4.5vw, 2.8rem)', lineHeight: 1.08,
         maxWidth: 900, marginBottom: sub ? 16 : 28,
+        ...breakStyle(lang),
       }}>{children}</h2>
       {sub ? (
         <p style={{
@@ -246,12 +255,13 @@ export default function Partners() {
         <Eyebrow>{t.eyebrow}</Eyebrow>
         <h1 className="display" style={{
           fontSize: 'clamp(2.1rem, 7vw, 4.6rem)', lineHeight: 1.03, maxWidth: 1000,
+          ...breakStyle(lang),
         }}>
-          {t.heroA}<span className="volt-text">{t.heroB}</span>
+          {t.heroA}{lang === 'en' ? null : <br />}<span className="volt-text">{t.heroB}</span>
         </h1>
         <p style={{
           color: 'var(--dim)', fontSize: 'clamp(0.95rem, 2vw, 1.1rem)',
-          lineHeight: 1.75, maxWidth: 760, marginTop: 26,
+          lineHeight: 1.75, maxWidth: 760, marginTop: 26, ...breakStyle(lang),
         }}>{t.heroSub}</p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 34 }}>
           <a href="#partner" className="btn btn--volt" style={{ padding: '13px 26px' }}>{t.ctaPrimary}</a>
@@ -270,7 +280,7 @@ export default function Partners() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(min(90vw, 380px), 1fr))',
           alignItems: 'start',
         }}>
-          <SectionHead>{t.whyHead}</SectionHead>
+          <SectionHead lang={lang}>{t.whyHead}</SectionHead>
           <div style={{ color: 'var(--dim)', fontSize: '0.95rem', lineHeight: 1.85 }}>
             <p style={{ marginBottom: 18 }}>{t.whyBody}</p>
             <p style={{ color: 'var(--text)', fontWeight: 600 }}>{t.whyBold}</p>
@@ -280,7 +290,7 @@ export default function Partners() {
 
       {/* NETWORK */}
       <section className="wrap section">
-        <SectionHead>{t.networkHead}</SectionHead>
+        <SectionHead lang={lang}>{t.networkHead}</SectionHead>
         <div style={{
           display: 'grid', gap: 1, background: 'var(--line)',
           gridTemplateColumns: 'repeat(auto-fit, minmax(min(90vw, 300px), 1fr))',
@@ -296,7 +306,7 @@ export default function Partners() {
 
       {/* PARTNERSHIP */}
       <section className="wrap section">
-        <SectionHead sub={t.partnerSub}>{t.partnerHead}</SectionHead>
+        <SectionHead lang={lang} sub={t.partnerSub}>{t.partnerHead}</SectionHead>
         <div style={{ display: 'grid', maxWidth: 880 }}>
           {t.partnership.map(([title, bodyText], i) => (
             <div key={title} style={{
@@ -315,7 +325,7 @@ export default function Partners() {
       {/* DISCOVERY */}
       <section className="wrap section">
         <div className="card" style={{ padding: 'clamp(28px, 5vw, 60px)' }}>
-          <SectionHead>{t.discoveryHead}</SectionHead>
+          <SectionHead lang={lang}>{t.discoveryHead}</SectionHead>
           <p style={{ color: 'var(--dim)', fontSize: '0.95rem', lineHeight: 1.85, maxWidth: 780 }}>
             {t.discoveryBody}
           </p>
@@ -329,7 +339,7 @@ export default function Partners() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(min(90vw, 380px), 1fr))',
           alignItems: 'start',
         }}>
-          <SectionHead>{t.systemHead}</SectionHead>
+          <SectionHead lang={lang}>{t.systemHead}</SectionHead>
           <div style={{ color: 'var(--dim)', fontSize: '0.95rem', lineHeight: 1.85 }}>
             <p style={{ marginBottom: 18 }}>{t.systemBody}</p>
             <p style={{ color: 'var(--text)', fontWeight: 600 }}>{t.systemBold}</p>
@@ -339,7 +349,7 @@ export default function Partners() {
 
       {/* TERMS */}
       <section className="wrap section">
-        <SectionHead>{t.termsHead}</SectionHead>
+        <SectionHead lang={lang}>{t.termsHead}</SectionHead>
         <div style={{
           display: 'grid', gap: 12,
           gridTemplateColumns: 'repeat(auto-fit, minmax(min(90vw, 330px), 1fr))',
@@ -355,7 +365,7 @@ export default function Partners() {
 
       {/* ONBOARDING */}
       <section className="wrap section">
-        <SectionHead>{t.onboardHead}</SectionHead>
+        <SectionHead lang={lang}>{t.onboardHead}</SectionHead>
         <div style={{
           display: 'grid', gap: 1, background: 'var(--line)',
           gridTemplateColumns: 'repeat(auto-fit, minmax(min(90vw, 240px), 1fr))',
@@ -380,6 +390,7 @@ export default function Partners() {
         }}>
           <h2 className="display" style={{
             fontSize: 'clamp(1.8rem, 5.5vw, 3.4rem)', lineHeight: 1.05, marginBottom: 20,
+            ...breakStyle(lang),
           }}>
             {t.finalA}<span className="volt-text">{t.finalB}</span>
           </h2>
