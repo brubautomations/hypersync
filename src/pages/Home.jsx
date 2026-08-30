@@ -434,7 +434,7 @@ export default function Home() {
             Tune in to everything.
           </div>
           <p style={{ fontSize: '0.72rem', color: 'var(--faint)' }}>
-            © {new Date().getFullYear()} HYPERSYNC
+            © 2025{new Date().getFullYear() > 2025 ? `\u2013${new Date().getFullYear()}` : ''} HYPERSYNC
           </p>
         </div>
         <div style={{ textAlign: 'center', paddingBottom: 18 }}>
