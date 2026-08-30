@@ -23,6 +23,18 @@
   <meta name="theme-color" content="#0C0C11" />
 </head>
 <body>
+  <!-- Netlify reads forms from the built HTML at deploy time. A React app
+       renders its form in JavaScript, so this hidden twin is what registers
+       the form. Field names must match src/pages/Partners.jsx exactly. -->
+  <form name="partners" netlify netlify-honeypot="company-website" hidden>
+    <input type="text" name="name" />
+    <input type="text" name="organization" />
+    <input type="text" name="artist" />
+    <input type="email" name="email" />
+    <textarea name="message"></textarea>
+    <input type="text" name="company-website" />
+  </form>
+
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
