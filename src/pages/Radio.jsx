@@ -330,9 +330,15 @@ export default function Radio() {
         <button className="rw-btn" onClick={toggle}>
           {live ? "STOP" : "TUNE IN"}
         </button>
+        {/* Phones have hardware volume, so the slider is dead weight there —
+            it becomes a level meter instead. Desktop keeps the slider, since
+            a browser tab has no volume of its own. */}
         <input className="rw-vol" type="range" min="0" max="100"
                value={Math.round(vol * 100)}
                onChange={(e) => setVol(e.target.value / 100)} aria-label="Volume" />
+        <div className={live ? "rw-viz on" : "rw-viz"} aria-hidden="true">
+          {Array.from({ length: 28 }, (_, i) => <span key={i} />)}
+        </div>
         <button className="rw-link" onClick={() => setListOpen((v) => !v)}>
           {listOpen ? "HIDE SCHEDULE" : "SCHEDULE"}
         </button>
@@ -450,6 +456,47 @@ const CSS = `
 .rw-btn:disabled{opacity:.4;cursor:default}
 .rw-btn:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .rw-vol{flex:1;min-width:0;accent-color:var(--volt,#FFD60A)}
+
+/* ---- level meter (phones) ---- */
+.rw-viz{display:none;flex:1;min-width:0;align-items:flex-end;justify-content:center;
+  gap:3px;height:26px}
+.rw-viz span{flex:1;max-width:4px;height:2px;border-radius:2px;
+  background:#3A3A48;transition:background .3s}
+.rw-viz.on span{background:var(--volt,#FFD60A);
+  animation:rwViz 1.1s ease-in-out infinite}
+/* each bar offset and paced differently so it never looks like a wave */
+.rw-viz.on span:nth-child(3n){animation-duration:.78s}
+.rw-viz.on span:nth-child(3n+1){animation-duration:1.35s}
+.rw-viz.on span:nth-child(4n){animation-duration:.95s}
+.rw-viz.on span:nth-child(5n){animation-duration:1.6s}
+.rw-viz.on span:nth-child(1){animation-delay:-.2s}
+.rw-viz.on span:nth-child(2){animation-delay:-.9s}
+.rw-viz.on span:nth-child(3){animation-delay:-.45s}
+.rw-viz.on span:nth-child(4){animation-delay:-1.2s}
+.rw-viz.on span:nth-child(5){animation-delay:-.05s}
+.rw-viz.on span:nth-child(6){animation-delay:-.7s}
+.rw-viz.on span:nth-child(7){animation-delay:-1.5s}
+.rw-viz.on span:nth-child(8){animation-delay:-.33s}
+.rw-viz.on span:nth-child(9){animation-delay:-1.05s}
+.rw-viz.on span:nth-child(10){animation-delay:-.6s}
+.rw-viz.on span:nth-child(11){animation-delay:-1.4s}
+.rw-viz.on span:nth-child(12){animation-delay:-.15s}
+.rw-viz.on span:nth-child(13){animation-delay:-.85s}
+.rw-viz.on span:nth-child(14){animation-delay:-1.25s}
+@keyframes rwViz{
+  0%,100%{height:3px}
+  25%{height:16px}
+  50%{height:7px}
+  75%{height:22px}
+}
+@media (prefers-reduced-motion: reduce){
+  .rw-viz.on span{animation:none;height:8px}
+}
+/* the swap */
+@media (max-width: 640px), (pointer: coarse){
+  .rw-vol{display:none}
+  .rw-viz{display:flex}
+}
 .rw-link{background:none;border:0;color:#8B8B9E;font-size:9.5px;font-weight:900;
   letter-spacing:.14em;cursor:pointer;padding:5px;white-space:nowrap}
 .rw-link:hover{color:#fff}
