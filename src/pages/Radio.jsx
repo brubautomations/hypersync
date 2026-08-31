@@ -492,8 +492,9 @@ const CSS = `
 @media (prefers-reduced-motion: reduce){
   .rw-viz.on span{animation:none;height:8px}
 }
-/* the swap */
-@media (max-width: 640px), (pointer: coarse){
+/* The swap keys off touch, NOT width — the station opens as a narrow popup
+   on desktop, and a width rule would hide the slider there too. */
+@media (pointer: coarse){
   .rw-vol{display:none}
   .rw-viz{display:flex}
 }
