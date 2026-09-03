@@ -19,7 +19,7 @@ const CONFIG = {
   LANDING: '/feed',
 
   SITE_NAME: 'HYPERSYNC',
-  FALLBACK_IMAGE: 'https://hypersync.live/og-default.jpg'
+  FALLBACK_IMAGE: 'https://hypersync.live/og-image.png'
 };
 
 const API_KEY = process.env.AIRTABLE_TOKEN;
@@ -32,7 +32,7 @@ function esc(s) {
     .replace(/"/g, '&quot;');
 }
 
-function page(title, description, image, landing) {
+function page(title, description, image, selfUrl, landing) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -43,14 +43,16 @@ function page(title, description, image, landing) {
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:image" content="${esc(image)}">
-<meta property="og:url" content="${esc(landing)}">
+<meta property="og:url" content="${esc(selfUrl)}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${esc(title)}">
 <meta name="twitter:description" content="${esc(description)}">
 <meta name="twitter:image" content="${esc(image)}">
-<meta http-equiv="refresh" content="0; url=${esc(landing)}">
 </head>
-<body><script>location.replace(${JSON.stringify(landing)});</script></body>
+<body>
+<script>location.replace(${JSON.stringify(landing)});</script>
+<noscript><a href="${esc(landing)}">Continue to ${esc(CONFIG.SITE_NAME)}</a></noscript>
+</body>
 </html>`;
 }
 
@@ -61,6 +63,8 @@ export default async (request) => {
   if (!id || !id.startsWith('rec')) {
     return Response.redirect(landing, 302);
   }
+
+  const selfUrl = CONFIG.SITE + '/n/' + id;
 
   try {
     const res = await fetch(
@@ -80,7 +84,7 @@ export default async (request) => {
     const desc = f[CONFIG.FIELD_SUMMARY] || '';
     const image = f[CONFIG.FIELD_IMAGE] || CONFIG.FALLBACK_IMAGE;
 
-    return new Response(page(title, desc, image, landing), {
+    return new Response(page(title, desc, image, selfUrl, landing), {
       headers: {
         'content-type': 'text/html; charset=utf-8',
         'cache-control': 'public, max-age=600'
@@ -93,5 +97,3 @@ export default async (request) => {
     });
   }
 };
-
-export const config = { path: '/n/*' };
