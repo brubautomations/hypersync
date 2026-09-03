@@ -8,7 +8,9 @@
  */
 
 const CONFIG = {
+  BASE_ID: 'appTaRsXhsuOLHU3f',
   TABLE: 'NEWS',
+
   FIELD_TITLE: 'Title',
   FIELD_SUMMARY: 'Summary',
   FIELD_IMAGE: 'Image',
@@ -20,8 +22,7 @@ const CONFIG = {
   FALLBACK_IMAGE: 'https://hypersync.live/og-default.jpg'
 };
 
-const API_KEY = process.env.AIRTABLE_KEY;
-const BASE_ID = process.env.AIRTABLE_BASE;
+const API_KEY = process.env.AIRTABLE_TOKEN;
 
 function esc(s) {
   return String(s || '')
@@ -48,7 +49,6 @@ function page(title, description, image, landing) {
 <meta name="twitter:description" content="${esc(description)}">
 <meta name="twitter:image" content="${esc(image)}">
 <meta http-equiv="refresh" content="0; url=${esc(landing)}">
-<link rel="canonical" href="${esc(landing)}">
 </head>
 <body><script>location.replace(${JSON.stringify(landing)});</script></body>
 </html>`;
@@ -64,11 +64,16 @@ export default async (request) => {
 
   try {
     const res = await fetch(
-      `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(CONFIG.TABLE)}/${id}`,
+      `https://api.airtable.com/v0/${CONFIG.BASE_ID}/${encodeURIComponent(CONFIG.TABLE)}/${id}`,
       { headers: { Authorization: `Bearer ${API_KEY}` } }
     );
 
-    if (!res.ok) return Response.redirect(landing, 302);
+    if (!res.ok) {
+      return new Response('Lookup failed: ' + res.status, {
+        status: 200,
+        headers: { 'content-type': 'text/plain' }
+      });
+    }
 
     const f = (await res.json()).fields || {};
     const title = f[CONFIG.FIELD_TITLE] || CONFIG.SITE_NAME;
@@ -82,7 +87,10 @@ export default async (request) => {
       }
     });
   } catch (e) {
-    return Response.redirect(landing, 302);
+    return new Response('Error: ' + e.message, {
+      status: 200,
+      headers: { 'content-type': 'text/plain' }
+    });
   }
 };
 
