@@ -10,58 +10,67 @@ const COPY = {
   en: {
     lang: "EN",
     eyebrow: "For artists, labels, agencies and management",
-    heroA: "PUT YOUR ARTISTS INSIDE A ",
-    heroB: "LIVING MUSIC NETWORK",
-    heroSub: "HYPERSYNC brings artist identity, news, schedules, releases, community, radio and direct fan participation into one continuously synchronized entertainment network. It is built around Asian music and open to global discovery.",
-    ctaPrimary: "Become a HYPERSYNC partner",
+    heroA: "BUILD YOUR ARTIST'S HYPERSYNC PRESENCE ",
+    heroB: "FROM DAY ONE",
+    heroSub: "HYPERSYNC is an early-stage Asian music discovery and fan platform with a working core for artist identity, continuously updated news, schedules and cross-scene discovery. We are opening a small number of launch partnerships with teams that want to shape the artist experience with us.",
+    ctaPrimary: "Discuss a launch partnership",
     ctaSecondary: "Explore HYPERSYNC",
-    whyHead: "ONE ARTIST CAN OPEN THE DOOR TO AN ENTIRE SCENE",
-    whyBody: "Fans rarely discover music by geography. They discover through curiosity. A fan may arrive on HYPERSYNC to check an artist's news, tour dates or latest posts, then meet another artist they have never heard of, click through, listen, read, follow and stay.",
-    whyBold: "That is the HYPERSYNC discovery loop. Familiar artists bring fans in, and the network introduces them to what comes next.",
-    networkHead: "MORE THAN AN ARTIST PAGE",
+    whyHead: "FAMILIARITY IS THE ENTRANCE. DISCOVERY IS THE DESTINATION.",
+    whyBody: "Fans usually arrive with one artist in mind. HYPERSYNC is being built so that a news check, schedule lookup or artist page can become the start of a journey into another artist, another scene or another market.",
+    whyBold: "The goal is simple: increase the number of moments in which an artist can be discovered without flattening different music scenes into one.",
+    networkHead: "THE WORKING CORE",
+    networkSub: "These are the systems and experiences HYPERSYNC can demonstrate today.",
     network: [
-      ["Artist Hubs", "A living destination for artist identity, verified links, news, activity, posts, discussions and direct fan touchpoints."],
-      ["News and Activity", "HYPERSYNC continuously organizes entertainment news, releases, appearances, concerts and tour activity into structured artist timelines."],
-      ["Discovery", "Artists appear alongside artists from other scenes and markets, creating cross-fandom exposure that search alone cannot create."],
-      ["Community", "Network-level conversation and artist-specific discussions give fandoms a place to react, debate and stay active between releases."],
-      ["HYPERSYNC Radio", "A 24/7 programmed station and media property built to move listeners across artists, eras, scenes and regions."],
-      ["Commerce and Direct Access", "Partner tools connect fans to official posts, messaging, merchandise and other artist-controlled experiences."]
+      ["Artist Hubs", "Structured artist pages bring identity, official links, activity and continuously maintained information into one place."],
+      ["News Aggregation", "HYPERSYNC collects entertainment coverage, filters it for relevance and connects it to the right artists and markets."],
+      ["Schedule Intelligence", "Recurring systems discover, verify, deduplicate and maintain concerts, releases, appearances and other artist activity."],
+      ["Artist Data", "Artist details and selected public metrics are refreshed through recurring data workflows, with review controls where accuracy matters."],
+      ["Cross-Scene Discovery", "The product is structured so one artist page, article or schedule check can lead naturally into another artist or scene."],
+      ["Partner Workspace", "An artist-side workspace already supports official profile control and direct publishing. Additional partner tools are still being developed."]
     ],
-    partnerHead: "FROM COVERED ARTIST TO OFFICIAL PARTICIPANT",
-    partnerSub: "HYPERSYNC may already track and organize public information around artists across its network. Partnership gives the artist and their authorized team a direct operating role inside that presence.",
+    roadmapHead: "BUILDING NEXT",
+    roadmapSub: "These are active development areas. We show them as roadmap, not as finished capabilities.",
+    roadmap: [
+      ["Payments and Commerce", "Payment-gateway integration and partner commerce workflows for artist-controlled sales and transactions."],
+      ["Paid Fan Interaction", "Direct paid messaging and related artist-to-fan monetization tools."],
+      ["Streaming and Media", "Production streaming capability and deeper HYPERSYNC Radio and media integrations."],
+      ["Partner Analytics", "Reporting for profile views, visitor geography, discovery paths, outbound clicks and engagement signals."]
+    ],
+    partnerHead: "DON'T JUST JOIN HYPERSYNC. HELP SHAPE IT.",
+    partnerSub: "HYPERSYNC is in an early-stage rollout. Instead of onboarding hundreds of artists at once, we are looking for a small number of launch partners whose teams can help shape how official artist participation should work in practice.",
     partnership: [
-      ["Official control", "Manage profile identity and approved artist information."],
-      ["Direct publishing", "Post updates, media and announcements straight to fans."],
-      ["Fan connection", "Take part in artist discussions and direct fan interaction features."],
-      ["Commercial access", "Use marketplace, messaging and monetization tools as they become available to your account."],
-      ["Media participation", "Coordinate with HYPERSYNC Radio and other network programming opportunities."],
-      ["Discovery presence", "Be surfaced not only to existing fans, but to people entering HYPERSYNC through other artists and scenes."]
+      ["Official presence", "Take control of the artist's verified HYPERSYNC identity and approved information."],
+      ["Direct publishing", "Publish approved updates and media directly through the artist-side workspace."],
+      ["Product input", "Tell us what your team actually needs from artist tools, reporting, community and workflow."],
+      ["Discovery presence", "Build the artist's presence inside HYPERSYNC's cross-scene discovery structure from an early stage."],
+      ["Priority development", "Launch-partner needs can influence what HYPERSYNC prioritizes next."],
+      ["Commercial options", "If your team wants specific functionality accelerated, custom integrations or a larger implementation, we can scope sponsored development or a commercial engagement separately."]
     ],
-    discoveryHead: "THE FANS YOU HAVE, AND THE FANS WHO HAVEN'T FOUND YOU YET",
-    discoveryBody: "HYPERSYNC is designed to increase the number of places where an artist can be found. A K-pop fan can run into P-pop. A P-pop fan can find Kazakh rap. A Japanese music fan can end up on an Australian act. The goal is not to flatten these scenes into one genre. It is to make the borders between them easier to cross.",
-    systemHead: "A NETWORK THAT KEEPS MOVING",
-    systemBody: "Behind the public experience, HYPERSYNC runs recurring systems that organize entertainment news, monitor artist activity, maintain schedules, refresh selected metrics and keep artist information synchronized. Automation handles the repetitive maintenance, while verification and editorial controls stay where accuracy matters.",
-    systemBold: "For partners, that means your HYPERSYNC presence does not depend on someone rebuilding the page by hand every time the artist moves.",
-    termsHead: "PARTNERSHIP WITHOUT PLATFORM RENT",
+    discoveryHead: "YOUR NEXT FAN MAY BE SOMEONE ELSE'S FAN TODAY",
+    discoveryBody: "HYPERSYNC is designed around movement between scenes. A K-pop fan can encounter P-pop. A P-pop fan can discover Kazakh rap. A Japanese music fan can end up exploring an Australian act. The point is not to blend these scenes into one genre. It is to create more paths between them.",
+    systemHead: "ALWAYS CURRENT WITHOUT THE BUSYWORK",
+    systemBody: "Behind the public experience, HYPERSYNC runs recurring systems that organize entertainment news, monitor artist activity, maintain schedules, refresh selected artist data and keep profiles synchronized. Automation handles repetitive maintenance; verification and editorial controls stay where accuracy matters.",
+    systemBold: "The goal is simple: partner teams should not have to rebuild the same information by hand every time an artist moves.",
+    termsHead: "START SMALL. PROVE VALUE. BUILD FROM THERE.",
     terms: [
-      ["No platform subscription", "There is no recurring fee simply to maintain an official partner presence."],
-      ["90% of paid-message revenue to the artist", "Where paid messaging is enabled, the artist keeps 90% and HYPERSYNC retains 10%."],
-      ["No marketplace commission", "Where HYPERSYNC links fans to the artist's own store, merchandise revenue stays with the seller."],
-      ["No content quota", "Partners decide when and how they use the platform. HYPERSYNC does not require a posting schedule to remain official."]
+      ["No recurring platform fee during the pilot", "Launch partners can evaluate the current HYPERSYNC experience without a recurring platform subscription during the agreed pilot."],
+      ["No content quota", "Your team decides how actively it participates. There is no posting requirement simply to remain part of the pilot."],
+      ["Works alongside existing channels", "HYPERSYNC can complement your website, social accounts, fan community and other infrastructure rather than replace them."],
+      ["Custom development scoped separately", "If you want specific features accelerated or built for your project, scope, timeline and commercial terms are agreed separately."]
     ],
-    onboardHead: "HOW PARTNERSHIP WORKS",
+    onboardHead: "HOW A LAUNCH PARTNERSHIP WORKS",
     onboarding: [
-      ["Partnership request", "An artist, label, agency or authorized representative gets in touch."],
-      ["Verification", "HYPERSYNC verifies representation and the artist's official presence."],
-      ["Partner access", "The authorized team receives access to the artist-side workspace and available controls."],
-      ["Go official", "The artist's presence becomes an official participant in the HYPERSYNC network."]
+      ["Talk", "Tell us about the artist or project and what your team wants from a fan platform."],
+      ["Demo", "We show you what HYPERSYNC can do today and what is still being built."],
+      ["Define the pilot", "Together we choose the current features that matter and identify any partner-specific development."],
+      ["Build together", "Your artist receives an official HYPERSYNC presence while feedback from the pilot helps shape the platform."]
     ],
-    finalA: "BRING YOUR ROSTER INTO ",
+    finalA: "BUILD WHAT COMES NEXT WITH ",
     finalB: "HYPERSYNC",
-    finalBody: "HYPERSYNC connects your team to a global network built for artist discovery and collaboration.",
+    finalBody: "We are looking for a small number of artists, labels and agencies willing to explore HYPERSYNC early — not only as users, but as launch partners helping shape the artist and fan experience.",
     formName: "Name",
     formOrg: "Agency, label or management",
-    formArtist: "Artist or roster",
+    formArtist: "Artist or project",
     formEmail: "Email",
     formMessage: "Message",
     tagline: "TUNE IN TO EVERYTHING",
@@ -70,58 +79,67 @@ const COPY = {
   ko: {
     lang: "한국어",
     eyebrow: "아티스트, 레이블, 기획사, 매니지먼트를 위한 안내",
-    heroA: "살아 움직이는 음악 네트워크로 ",
-    heroB: "아티스트를 초대하세요",
-    heroSub: "HYPERSYNC는 아티스트 정보, 뉴스, 일정, 발매, 커뮤니티, 라디오, 팬과의 직접 소통을 하나의 네트워크로 연결하고 계속 최신 상태로 유지합니다. 아시아 음악을 중심에 두되, 발견의 범위는 전 세계로 확장됩니다.",
-    ctaPrimary: "HYPERSYNC 파트너 신청",
+    heroA: "아티스트의 HYPERSYNC 여정을 ",
+    heroB: "첫날부터 시작하세요",
+    heroSub: "HYPERSYNC는 아시아 음악을 중심으로 한 초기 단계의 음악 디스커버리·팬 플랫폼입니다. 아티스트 정보, 뉴스, 일정, 씬 간 발견을 지속적으로 업데이트하는 핵심 시스템은 이미 작동하고 있습니다. 지금은 아티스트 경험을 함께 만들어갈 소수의 초기 파트너를 찾고 있습니다.",
+    ctaPrimary: "초기 파트너십 논의하기",
     ctaSecondary: "HYPERSYNC 둘러보기",
-    whyHead: "한 아티스트가 새로운 음악 씬 전체로 이어지는 시작점이 됩니다",
-    whyBody: "팬은 지역을 기준으로 음악을 찾지 않습니다. 호기심을 따라 찾습니다. 특정 아티스트의 뉴스나 공연 일정, 최신 게시물을 보러 들어온 팬이 들어본 적 없는 다른 아티스트를 만나 클릭하고, 듣고, 읽고, 팔로우하고, 그대로 머무릅니다.",
-    whyBold: "이것이 HYPERSYNC의 발견 구조입니다. 익숙한 아티스트가 팬을 데려오고, 네트워크가 그 다음을 소개합니다.",
-    networkHead: "아티스트 페이지 그 이상입니다",
+    whyHead: "익숙한 아티스트에서 시작해, 새로운 발견으로 이어집니다",
+    whyBody: "팬은 보통 이미 알고 있는 한 아티스트를 찾아옵니다. HYPERSYNC는 뉴스 확인, 일정 조회, 아티스트 페이지 방문이 다른 아티스트와 다른 씬, 다른 시장으로 이어지도록 설계되고 있습니다.",
+    whyBold: "목표는 단순합니다. 서로 다른 음악 씬을 하나로 섞지 않으면서도, 아티스트가 발견되는 순간을 더 많이 만드는 것입니다.",
+    networkHead: "지금 작동하는 핵심 기능",
+    networkSub: "아래 기능과 시스템은 현재 HYPERSYNC에서 직접 확인할 수 있습니다.",
     network: [
-      ["아티스트 허브", "아티스트 정보, 공식 링크, 뉴스, 활동, 게시물, 토론, 팬 접점이 한곳에 모이는 상시 공간입니다."],
-      ["뉴스와 활동", "엔터테인먼트 뉴스, 발매, 출연, 콘서트, 투어 활동을 아티스트별 타임라인으로 계속 정리합니다."],
-      ["새로운 발견", "다른 씬과 시장의 아티스트와 나란히 노출되어, 검색만으로는 만들 수 없는 팬덤 간 교차 노출이 일어납니다."],
-      ["커뮤니티", "네트워크 전체 대화와 아티스트별 토론을 통해 컴백 사이에도 팬덤 활동이 이어집니다."],
-      ["HYPERSYNC 라디오", "아티스트, 시대, 씬, 지역을 넘나들도록 편성한 24시간 방송이자 자체 미디어입니다."],
-      ["커머스·직접 소통", "파트너 기능을 통해 공식 게시물, 메시지, 상품 등 아티스트가 관리하는 경험으로 팬을 연결합니다."]
+      ["아티스트 허브", "아티스트 정보, 공식 링크, 활동, 지속적으로 관리되는 공개 정보를 한곳에 정리합니다."],
+      ["뉴스 집계", "엔터테인먼트 기사를 수집하고 관련성을 확인한 뒤, 적절한 아티스트와 시장에 연결합니다."],
+      ["일정 인텔리전스", "콘서트, 발매, 출연 등 아티스트 활동을 반복적으로 탐색·검증·중복 정리·유지합니다."],
+      ["아티스트 데이터", "아티스트 상세 정보와 일부 공개 지표를 반복적으로 갱신하며, 정확성이 중요한 항목에는 검토 절차를 둡니다."],
+      ["씬 간 디스커버리", "한 아티스트 페이지나 기사, 일정 확인이 다른 아티스트와 다른 음악 씬으로 자연스럽게 이어지도록 구조화되어 있습니다."],
+      ["파트너 워크스페이스", "아티스트 측 워크스페이스에서 공식 프로필 관리와 직접 게시를 지원합니다. 추가 파트너 기능은 계속 개발 중입니다."]
     ],
-    partnerHead: "단순 소개를 넘어, 공식 파트너로",
-    partnerSub: "HYPERSYNC는 이미 네트워크 전반에서 아티스트 관련 공개 정보를 수집하고 정리하고 있을 수 있습니다. 파트너십은 아티스트와 승인된 팀에게 그 존재를 직접 운영할 권한을 드립니다.",
+    roadmapHead: "다음 단계로 만들고 있는 것",
+    roadmapSub: "아래 항목은 현재 개발 중인 영역입니다.",
+    roadmap: [
+      ["결제·커머스", "결제 게이트웨이와 파트너 커머스 흐름을 개발하고 있습니다."],
+      ["유료 팬 소통", "아티스트와 팬의 유료 직접 소통 및 관련 수익화 기능을 개발하고 있습니다."],
+      ["스트리밍·미디어", "프로덕션 스트리밍과 HYPERSYNC RADIO를 포함한 미디어 연동을 확장하고 있습니다."],
+      ["파트너 분석", "프로필 조회, 방문 국가, 디스커버리 경로, 외부 링크 클릭, 참여도 등을 보여주는 리포팅을 개발하고 있습니다."]
+    ],
+    partnerHead: "단순히 참여하는 파트너가 아니라, 함께 만드는 파트너를 찾습니다",
+    partnerSub: "HYPERSYNC는 현재 초기 롤아웃 단계입니다. 한꺼번에 수백 팀을 받기보다, 실제 현장에서 필요한 공식 아티스트 경험을 함께 설계할 소수의 초기 파트너와 먼저 시작하려 합니다.",
     partnership: [
-      ["공식 관리 권한", "프로필 정보와 승인된 아티스트 정보를 직접 관리합니다."],
-      ["직접 게시", "소식, 미디어, 공지를 팬에게 바로 게시합니다."],
-      ["팬 접점", "아티스트 토론과 직접 소통 기능에 참여합니다."],
-      ["커머셜 액세스", "마켓플레이스, 메시징, 수익화 기능을 계정에서 사용 가능해지는 시점부터 이용합니다."],
-      ["미디어 연계", "HYPERSYNC 라디오와 네트워크 편성 기회에 함께합니다."],
-      ["디스커버리 노출", "기존 팬뿐 아니라 다른 아티스트와 씬을 통해 들어온 이용자에게도 노출됩니다."]
+      ["공식 프로필 운영", "검증된 HYPERSYNC 아티스트 프로필과 승인된 정보를 직접 관리합니다."],
+      ["직접 게시", "승인된 소식과 미디어를 아티스트 전용 워크스페이스에서 직접 게시합니다."],
+      ["제품 피드백", "아티스트 도구, 리포팅, 커뮤니티, 업무 흐름에서 실제로 필요한 기능을 알려주세요."],
+      ["초기 디스커버리 참여", "HYPERSYNC의 씬 간 디스커버리 구조 안에서 아티스트의 존재를 초기부터 함께 구축합니다."],
+      ["개발 우선순위 반영", "초기 파트너의 실제 요구는 HYPERSYNC의 다음 개발 우선순위에 반영될 수 있습니다."],
+      ["확장 개발 옵션", "특정 기능의 빠른 개발, 커스텀 연동 또는 더 큰 규모의 구현이 필요하다면 별도의 스폰서 개발 또는 상업적 협업으로 범위를 논의할 수 있습니다."]
     ],
-    discoveryHead: "이미 함께하는 팬, 아직 만나지 못한 팬",
-    discoveryBody: "HYPERSYNC는 아티스트가 발견될 수 있는 접점을 늘리도록 설계되었습니다. K-pop 팬이 P-pop을 접하고, P-pop 팬이 카자흐 랩을 찾고, 일본 음악 팬이 호주 아티스트에 닿습니다. 목표는 여러 씬을 하나의 장르로 묶는 것이 아니라, 그 경계를 더 쉽게 넘도록 만드는 것입니다.",
-    systemHead: "계속 움직이는 네트워크",
-    systemBody: "공개된 화면 뒤에서 HYPERSYNC는 엔터테인먼트 뉴스를 정리하고, 아티스트 활동을 확인하고, 일정을 유지하고, 선별된 지표를 갱신하며, 아티스트 정보를 동기화하는 시스템을 상시 운영합니다. 반복되는 유지 작업은 자동화가 맡고, 정확성이 중요한 부분에는 검증과 편집 관리를 유지합니다.",
-    systemBold: "파트너 입장에서는, 아티스트의 활동이 바뀔 때마다 누군가 페이지를 수동으로 다시 만들 필요가 없다는 뜻입니다.",
-    termsHead: "플랫폼 이용료 없는 파트너십",
+    discoveryHead: "다음 팬은 오늘, 다른 아티스트의 팬일 수 있습니다",
+    discoveryBody: "HYPERSYNC는 서로 다른 음악 씬 사이의 이동을 전제로 설계되고 있습니다. K-pop 팬이 P-pop을 접하고, P-pop 팬이 카자흐 랩을 발견하고, 일본 음악 팬이 호주 아티스트까지 탐색할 수 있습니다. 목표는 여러 씬을 하나의 장르로 섞는 것이 아니라, 그 사이를 오갈 수 있는 길을 더 많이 만드는 것입니다.",
+    systemHead: "반복 업무 없이, 계속 최신으로",
+    systemBody: "공개된 화면 뒤에서 HYPERSYNC는 엔터테인먼트 뉴스를 정리하고, 아티스트 활동을 확인하고, 일정을 유지하고, 일부 아티스트 데이터를 갱신하며, 프로필 정보를 동기화하는 시스템을 반복적으로 운영합니다. 반복 유지 작업은 자동화가 맡고, 정확성이 중요한 부분에는 검증과 편집 관리를 유지합니다.",
+    systemBold: "목표는 단순합니다. 아티스트가 움직일 때마다 파트너 팀이 같은 정보를 매번 손으로 다시 만들 필요가 없도록 하는 것입니다.",
+    termsHead: "작게 시작하고, 가치를 확인한 뒤, 함께 키웁니다",
     terms: [
-      ["플랫폼 구독료 없음", "공식 파트너 지위를 유지하기 위한 정기 비용이 없습니다."],
-      ["유료 메시지 수익의 90%는 아티스트에게", "유료 메시지를 운영하는 경우 아티스트가 90%를 가져가고 HYPERSYNC가 10%를 보유합니다."],
-      ["마켓플레이스 수수료 없음", "HYPERSYNC가 아티스트 자체 스토어로 팬을 연결하는 경우, 상품 수익은 전액 판매자에게 귀속됩니다."],
-      ["콘텐츠 의무 없음", "이용 시점과 방식은 파트너가 정합니다. 공식 지위 유지를 위한 게시 일정은 요구하지 않습니다."]
+      ["파일럿 기간 정기 플랫폼 이용료 없음", "합의된 파일럿 기간 동안 현재 HYPERSYNC를 정기 플랫폼 구독료 없이 평가할 수 있습니다."],
+      ["콘텐츠 의무 없음", "참여 방식과 빈도는 파트너가 정합니다. 파일럿 참여를 유지하기 위한 게시 의무는 없습니다."],
+      ["기존 채널과 병행 가능", "웹사이트, SNS, 팬 커뮤니티 등 기존 인프라를 대체할 필요 없이 함께 운영할 수 있습니다."],
+      ["커스텀 개발은 별도 협의", "특정 기능의 우선 개발이나 프로젝트 전용 기능이 필요할 경우 범위, 일정, 상업 조건을 별도로 협의합니다."]
     ],
-    onboardHead: "파트너십 진행 절차",
+    onboardHead: "초기 파트너십 진행 방식",
     onboarding: [
-      ["파트너십 문의", "아티스트, 레이블, 기획사 또는 권한 있는 담당자가 연락합니다."],
-      ["확인", "HYPERSYNC가 대리 권한과 아티스트의 공식 계정을 확인합니다."],
-      ["파트너 권한 부여", "승인된 팀이 아티스트 전용 워크스페이스와 사용 가능한 관리 기능을 받습니다."],
-      ["공식 전환", "해당 아티스트가 HYPERSYNC 네트워크의 공식 참여자가 됩니다."]
+      ["이야기 나누기", "아티스트 또는 프로젝트와 팬 플랫폼에서 원하는 것을 알려주세요."],
+      ["데모", "현재 HYPERSYNC에서 가능한 것과 아직 개발 중인 것을 그대로 보여드립니다."],
+      ["파일럿 정의", "어떤 현재 기능이 필요한지 정하고, 파트너 전용 개발이 필요한지도 함께 확인합니다."],
+      ["함께 구축", "아티스트의 공식 HYPERSYNC 존재를 만들고, 파일럿 피드백을 제품에 반영합니다."]
     ],
-    finalA: "소속 아티스트를 ",
-    finalB: "HYPERSYNC로",
-    finalBody: "HYPERSYNC는 아티스트 발견과 협업을 위해 만든 글로벌 네트워크에 귀사 팀을 연결합니다.",
+    finalA: "다음 팬 경험을 ",
+    finalB: "HYPERSYNC와 함께 만드세요",
+    finalBody: "HYPERSYNC를 단순히 사용하는 것이 아니라, 아티스트와 팬 경험을 함께 만들어갈 소수의 아티스트, 레이블, 기획사를 찾고 있습니다.",
     formName: "성함",
     formOrg: "기획사, 레이블 또는 매니지먼트",
-    formArtist: "아티스트 또는 로스터",
+    formArtist: "아티스트 또는 프로젝트",
     formEmail: "이메일",
     formMessage: "문의 내용",
     tagline: "TUNE IN TO EVERYTHING",
@@ -130,58 +148,67 @@ const COPY = {
   ja: {
     lang: "日本語",
     eyebrow: "アーティスト、レーベル、事務所、マネジメントの皆様へ",
-    heroA: "アーティストを、",
-    heroB: "動き続ける音楽ネットワークへ",
-    heroSub: "HYPERSYNCは、アーティスト情報、ニュース、スケジュール、リリース、コミュニティ、ラジオ、ファンとの直接的な接点をひとつのネットワークにまとめ、継続的に同期します。アジアの音楽を軸にしながら、グローバルな発見にも開かれています。",
-    ctaPrimary: "HYPERSYNCパートナーに申し込む",
+    heroA: "アーティストの公式な拠点を、",
+    heroB: "HYPERSYNCで初日から",
+    heroSub: "HYPERSYNCは、アジアの音楽を軸にした初期段階の音楽ディスカバリー／ファンプラットフォームです。アーティスト情報、ニュース、スケジュール、シーンをまたぐ発見を継続的に更新する中核システムはすでに稼働しています。現在、アーティスト体験を一緒に形にしていく少数のローンチパートナーを募集しています。",
+    ctaPrimary: "ローンチパートナーシップを相談する",
     ctaSecondary: "HYPERSYNCを見る",
-    whyHead: "あるアーティストとの出会いが、シーン全体への入口になる",
-    whyBody: "ファンは地域で音楽を探しているわけではありません。きっかけは、好奇心です。好きなアーティストのニュースやツアー情報を見に来たファンが、知らなかったアーティストに出会い、聴き、フォローし、また戻ってくる。",
-    whyBold: "これがHYPERSYNCのディスカバリーループです。知っているアーティストが入口になり、ネットワークが次の出会いにつなげます。",
-    networkHead: "アーティストページの、その先へ",
+    whyHead: "知っているアーティストが入口になり、次の発見につながる",
+    whyBody: "ファンは通常、すでに知っているひと組のアーティストを目的に訪れます。HYPERSYNCは、ニュースの確認、スケジュールのチェック、アーティストページの閲覧が、別のアーティスト、別のシーン、別の市場への入口になるよう設計しています。",
+    whyBold: "目的はシンプルです。異なる音楽シーンをひとつに混ぜることなく、アーティストが発見されるきっかけを増やすことです。",
+    networkHead: "いま動いている中核機能",
+    networkSub: "以下は、現在のHYPERSYNCで実際にご覧いただける機能と仕組みです。",
     network: [
-      ["アーティストハブ", "アーティスト情報、公式リンク、ニュース、活動、投稿、ディスカッション、ファンとの接点が集まる常設の拠点です。"],
-      ["ニュースと活動", "エンターテインメントニュース、リリース、出演、コンサート、ツアー活動を、アーティストごとのタイムラインとして整理し続けます。"],
-      ["ディスカバリー", "他のシーンや市場のアーティストと並んで表示され、検索だけでは生まれないファンダム間の露出が生まれます。"],
-      ["コミュニティ", "ネットワーク全体の会話とアーティスト別のディスカッションにより、リリースの合間もファンダムが動き続けます。"],
-      ["HYPERSYNC RADIO", "アーティスト、時代、シーン、地域を横断するように編成した24時間放送であり、自社メディアです。"],
-      ["コマース＆ダイレクトコミュニケーション", "パートナー向け機能で、公式投稿、メッセージ、グッズなどアーティスト側が管理する体験へファンをつなぎます。"]
+      ["アーティストハブ", "アーティスト情報、公式リンク、活動、継続的に更新される公開情報をひとつの場所にまとめます。"],
+      ["ニュース集約", "エンターテインメント記事を収集し、関連性を確認したうえで、適切なアーティストや市場に紐づけます。"],
+      ["スケジュール管理システム", "コンサート、リリース、出演などのアーティスト活動を継続的に検出・確認し、重複を整理しながら維持します。"],
+      ["アーティストデータ", "アーティスト情報と一部の公開指標を定期的に更新し、正確さが重要な項目には確認の仕組みを残しています。"],
+      ["シーン横断ディスカバリー", "ひとつのアーティストページ、記事、スケジュール確認から、別のアーティストや音楽シーンへ自然につながる構造です。"],
+      ["パートナーワークスペース", "アーティスト側のワークスペースでは、公式プロフィール管理と直接投稿をすでに利用できます。追加のパートナー機能は引き続き開発中です。"]
     ],
-    partnerHead: "掲載アーティストから、公式パートナーへ",
-    partnerSub: "HYPERSYNCはすでに、ネットワーク全体でアーティストに関する公開情報を集めて整理している場合があります。パートナーシップは、アーティストと承認されたチームに、その存在を自ら運用する権限をもたらします。",
+    roadmapHead: "次に開発しているもの",
+    roadmapSub: "以下は現在開発中の領域です。",
+    roadmap: [
+      ["決済・コマース", "決済ゲートウェイと、パートナー向けのコマースフローを開発しています。"],
+      ["有料ファンコミュニケーション", "アーティストとファンの有料ダイレクトコミュニケーションや関連する収益化機能を開発しています。"],
+      ["ストリーミング・メディア", "本番運用のストリーミング機能と、HYPERSYNC RADIOを含むメディア連携を拡張しています。"],
+      ["パートナー分析", "プロフィール閲覧、訪問地域、ディスカバリー経路、外部リンククリック、エンゲージメントなどを可視化するレポート機能を開発しています。"]
+    ],
+    partnerHead: "参加するだけでなく、一緒につくるパートナーへ",
+    partnerSub: "HYPERSYNCは現在、初期ロールアウトの段階です。最初から何百組も受け入れるのではなく、公式アーティスト参加のあり方を実際の現場目線で一緒に形にしてくれる少数のローンチパートナーと始めたいと考えています。",
     partnership: [
-      ["公式な管理権限", "プロフィール情報と承認済みのアーティスト情報を管理します。"],
-      ["ダイレクト配信", "最新情報、メディア、告知をファンへ直接投稿します。"],
-      ["ファンとの接点", "アーティストのディスカッションや直接的な交流機能に参加します。"],
-      ["コマース機能", "マーケットプレイス、メッセージ、収益化ツールを、アカウントで利用可能になり次第ご利用いただけます。"],
-      ["メディア連携", "HYPERSYNC RADIOやネットワーク編成の機会と連携します。"],
-      ["発見される導線", "既存のファンだけでなく、他のアーティストやシーンから入ってきた人にも表示されます。"]
+      ["公式運用", "検証済みのHYPERSYNCアーティストプロフィールと承認された情報を直接管理します。"],
+      ["ダイレクト投稿", "承認済みの最新情報やメディアを、アーティスト側のワークスペースから直接投稿します。"],
+      ["プロダクトへの意見", "アーティスト向けツール、レポート、コミュニティ、運用フローに本当に必要なものを教えてください。"],
+      ["ディスカバリー参加", "HYPERSYNCのシーン横断ディスカバリー構造の中で、アーティストの存在を早い段階から一緒につくります。"],
+      ["開発優先度への反映", "ローンチパートナーの実際のニーズは、HYPERSYNCの次の開発優先度に反映される可能性があります。"],
+      ["拡張開発オプション", "特定機能の優先開発、カスタム連携、より大きな実装が必要な場合は、スポンサー型の開発や商用案件として別途スコープを相談できます。"]
     ],
-    discoveryHead: "今いるファンと、まだ出会っていないファン",
-    discoveryBody: "HYPERSYNCは、アーティストが見つかる場所の数を増やすように設計しています。K-POPのファンがP-POPに出会い、P-POPのファンがカザフのラップを見つけ、日本の音楽ファンがオーストラリアのアーティストにたどり着きます。目的はシーンをひとつのジャンルにまとめることではありません。その境界を越えやすくすることです。",
-    systemHead: "動き続けるネットワーク",
-    systemBody: "公開されている画面の裏側で、HYPERSYNCはエンターテインメントニュースの整理、アーティスト活動の確認、スケジュールの維持、指標の更新、アーティスト情報の同期を行うシステムを常時動かしています。繰り返しの保守は自動化が担い、正確さが求められる部分には確認と編集の管理を残しています。",
-    systemBold: "パートナーにとっては、アーティストの動きに合わせて誰かが毎回ページを作り直す必要がない、ということです。",
-    termsHead: "プラットフォーム利用料のないパートナーシップ",
+    discoveryHead: "次のファンは、今日まだ別のアーティストのファンかもしれない",
+    discoveryBody: "HYPERSYNCは、異なる音楽シーンの間をファンが移動できることを前提に設計しています。K-POPのファンがP-POPに出会い、P-POPのファンがカザフのラップを知り、日本の音楽ファンがオーストラリアのアーティストまでたどり着く。目的はシーンをひとつのジャンルに混ぜることではなく、その間にもっと多くの道をつくることです。",
+    systemHead: "手間を増やさず、いつでも最新に",
+    systemBody: "公開画面の裏側で、HYPERSYNCはエンターテインメントニュースの整理、アーティスト活動の確認、スケジュールの維持、一部のアーティストデータ更新、プロフィール情報の同期を繰り返し行っています。反復的な保守は自動化が担い、正確さが重要な部分には確認と編集の管理を残しています。",
+    systemBold: "目指しているのはシンプルです。アーティストが動くたびに、パートナーチームが同じ情報を毎回手作業で作り直さなくていい状態です。",
+    termsHead: "小さく始めて、価値を確かめ、そこから広げる",
     terms: [
-      ["月額利用料なし", "公式パートナーとしての掲載を維持するための継続費用はありません。"],
-      ["有料メッセージ収益の90%をアーティストへ", "有料メッセージを運用する場合、アーティストが90%を受け取り、HYPERSYNCは10%を保持します。"],
-      ["マーケットプレイス手数料なし", "HYPERSYNCがアーティスト自身のストアへファンを案内する場合、物販収益は全額販売者のものです。"],
-      ["投稿ノルマなし", "利用の時期と方法はパートナーが決めます。公式である条件として投稿頻度を求めることはありません。"]
+      ["パイロット期間の月額利用料なし", "合意したパイロット期間中は、現在のHYPERSYNCを継続的なプラットフォーム利用料なしで評価できます。"],
+      ["投稿ノルマなし", "参加の頻度や使い方はパートナーが決めます。パイロット参加を維持するための投稿義務はありません。"],
+      ["既存チャネルと併用可能", "公式サイト、SNS、ファンコミュニティなど既存の仕組みを置き換える必要はなく、並行して利用できます。"],
+      ["カスタム開発は別途相談", "特定機能の優先開発やプロジェクト専用機能が必要な場合は、範囲、スケジュール、商用条件を別途相談します。"]
     ],
-    onboardHead: "パートナーシップの進め方",
+    onboardHead: "ローンチパートナーシップの進め方",
     onboarding: [
-      ["お問い合わせ", "アーティスト、レーベル、事務所、または権限のあるご担当者からご連絡ください。"],
-      ["確認", "HYPERSYNCが代理権限とアーティストの公式アカウントを確認します。"],
-      ["パートナー権限の付与", "承認されたチームに、アーティスト側のワークスペースと利用可能な管理機能をお渡しします。"],
-      ["公式化", "そのアーティストがHYPERSYNCネットワークの公式な参加者になります。"]
+      ["まず話す", "アーティストやプロジェクトについて、そしてファンプラットフォームに求めていることを教えてください。"],
+      ["デモ", "HYPERSYNCで現在できることと、まだ開発中のことをそのままお見せします。"],
+      ["パイロットを決める", "今ある機能の中で何が必要か、パートナー向けの追加開発が必要かを一緒に整理します。"],
+      ["一緒につくる", "アーティストの公式HYPERSYNC拠点をつくり、パイロットから得たフィードバックをプロダクトに反映します。"]
     ],
-    finalA: "所属アーティストを",
-    finalB: "HYPERSYNCへ",
-    finalBody: "HYPERSYNCは、アーティストの発見とコラボレーションのために作られたグローバルネットワークに、あなたのチームをつなぎます。",
+    finalA: "次のファン体験を、",
+    finalB: "HYPERSYNCと一緒につくる",
+    finalBody: "HYPERSYNCを単に利用するのではなく、アーティストとファンの体験を一緒に形にしていく少数のアーティスト、レーベル、事務所を探しています。",
     formName: "お名前",
     formOrg: "事務所、レーベルまたはマネジメント",
-    formArtist: "アーティスト名またはロスター",
+    formArtist: "アーティスト名またはプロジェクト",
     formEmail: "メールアドレス",
     formMessage: "ご用件",
     tagline: "TUNE IN TO EVERYTHING",
@@ -315,9 +342,9 @@ export default function Partners() {
         </div>
       </section>
 
-      {/* NETWORK */}
+      {/* WORKING CORE */}
       <section className="wrap section">
-        <SectionHead lang={lang}>{t.networkHead}</SectionHead>
+        <SectionHead lang={lang} sub={t.networkSub}>{t.networkHead}</SectionHead>
         <div style={{
           display: 'grid', gap: 1, background: 'var(--line)',
           gridTemplateColumns: 'repeat(3, 1fr)',
@@ -326,6 +353,22 @@ export default function Partners() {
             <div key={title} style={{ background: 'var(--ink, #0C0C11)', padding: 'clamp(22px, 3vw, 32px)' }}>
               <div style={{ fontWeight: 800, fontSize: '0.98rem', marginBottom: 10 }}>{title}</div>
               <div style={{ fontSize: '0.85rem', color: 'var(--dim)', lineHeight: 1.7 }}>{bodyText}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ROADMAP */}
+      <section className="wrap section">
+        <SectionHead lang={lang} sub={t.roadmapSub}>{t.roadmapHead}</SectionHead>
+        <div style={{
+          display: 'grid', gap: 12,
+          gridTemplateColumns: 'repeat(2, 1fr)',
+        }} className="grid-2">
+          {t.roadmap.map(([title, bodyText]) => (
+            <div key={title} className="card" style={{ padding: 'clamp(20px, 3vw, 28px)' }}>
+              <div style={{ fontWeight: 800, fontSize: '0.92rem', marginBottom: 10, lineHeight: 1.4 }}>{title}</div>
+              <div style={{ fontSize: '0.84rem', color: 'var(--dim)', lineHeight: 1.7 }}>{bodyText}</div>
             </div>
           ))}
         </div>
@@ -374,7 +417,7 @@ export default function Partners() {
         </div>
       </section>
 
-      {/* TERMS */}
+      {/* PILOT */}
       <section className="wrap section">
         <SectionHead lang={lang}>{t.termsHead}</SectionHead>
         <div style={{
