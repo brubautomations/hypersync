@@ -174,12 +174,22 @@ export default function Submit() {
           GET YOUR MUSIC ON <span className="volt-text">HYPERSYNC RADIO</span>
         </h1>
 
-        <p style={{
-          color: 'var(--dim)', fontSize: 'clamp(0.95rem, 2vw, 1.08rem)',
-          lineHeight: 1.75, maxWidth: 700, marginTop: 24,
+        <div style={{
+          color: 'var(--dim)', fontSize: 'clamp(0.95rem, 2vw, 1.06rem)',
+          lineHeight: 1.8, maxWidth: 700, marginTop: 26, display: 'grid', gap: 18,
         }}>
-          HYPERSYNC Radio plays around the clock across Asia and beyond. Send us a track. If it fits a show, it goes into rotation, and your artist page goes up alongside it. There's no fee, and you keep every right to your music.
-        </p>
+          <p>
+            HYPERSYNC Radio is a 24/7 internet radio station with scheduled shows, on-air
+            presentation, and music curated for different parts of the day.
+          </p>
+          <p>
+            If your track fits one of our shows, we'll put it into rotation as part of the
+            LIVE broadcast.
+          </p>
+          <p>
+            Independent artists are welcome to submit. Your music stays yours.
+          </p>
+        </div>
       </section>
 
       <hr style={{ height: 1, background: 'var(--line)', border: 0, margin: 0 }} />
