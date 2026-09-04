@@ -1,10 +1,12 @@
 // netlify/functions/submit-track.js
 //
-// Writes the submission row into Airtable. The audio and cover art are
-// already in R2 by this point, so they arrive here as URLs and Airtable
-// fetches them into the attachment fields.
+// Three jobs:
+//   GET  /api/terms          returns the active submission terms text
+//   POST /api/submit-track   writes the submission row into Airtable
+//   GET  /api/verify?t=...   ticks the Verified box
 //
-// Also serves GET /api/verify?t=<token> to tick the Verified box.
+// The audio and cover art are already in R2 by the time the row is written,
+// so they arrive here as URLs and Airtable fetches them into the attachments.
 //
 // Netlify environment variables required:
 //   RADIO_TOKEN     Airtable personal access token (needs write scope)
@@ -31,6 +33,8 @@ const CONFIG = {
   F_VERIFIED: "Verified",
   F_TOKEN: "Verify Token",
 
+  TERMS_F_TEXT: "Text",
+
   STATUS_NEW: "Pending",
 };
 
@@ -46,15 +50,32 @@ function clean(s, max) {
   return String(s == null ? "" : s).trim().slice(0, max || 500);
 }
 
-async function activeTermsId(pat, base) {
+async function activeTerms(pat, base) {
   const url = new URL(`${AIR}/${base}/${encodeURIComponent(CONFIG.TERMS_TABLE)}`);
   url.searchParams.set("maxRecords", "1");
   url.searchParams.set("filterByFormula", "{Active}");
 
   const res = await fetch(url, { headers: { Authorization: `Bearer ${pat}` } });
   if (!res.ok) return null;
+
   const json = await res.json();
-  return json.records && json.records[0] ? json.records[0].id : null;
+  return json.records && json.records[0] ? json.records[0] : null;
+}
+
+async function serveTerms(pat, base) {
+  const rec = await activeTerms(pat, base);
+
+  return Response.json(
+    {
+      version: rec ? rec.fields.Version || "" : "",
+      text: rec ? rec.fields[CONFIG.TERMS_F_TEXT] || "" : "",
+    },
+    {
+      headers: {
+        "Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=600",
+      },
+    }
+  );
 }
 
 async function createSubmission(req, pat, base) {
@@ -77,8 +98,8 @@ async function createSubmission(req, pat, base) {
   if (body.agreed !== true)
     return Response.json({ error: "You must agree to the terms to submit." }, { status: 400 });
 
-  const termsId = await activeTermsId(pat, base);
-  if (!termsId)
+  const terms = await activeTerms(pat, base);
+  if (!terms)
     return Response.json({ error: "Submissions are closed right now." }, { status: 503 });
 
   const verify = token();
@@ -92,7 +113,7 @@ async function createSubmission(req, pat, base) {
   fields[CONFIG.F_LINKS] = clean(body.links, 2000);
   fields[CONFIG.F_COUNTRY] = clean(body.country, 100);
   fields[CONFIG.F_PRO] = clean(body.pro, 200);
-  fields[CONFIG.F_TERMS] = [termsId];
+  fields[CONFIG.F_TERMS] = [terms.id];
   fields[CONFIG.F_STATUS] = CONFIG.STATUS_NEW;
   fields[CONFIG.F_VERIFIED] = false;
   fields[CONFIG.F_TOKEN] = verify;
@@ -121,12 +142,13 @@ async function createSubmission(req, pat, base) {
 
 async function verifyToken(req, pat, base) {
   const t = new URL(req.url).searchParams.get("t") || "";
+
   const page = (msg) =>
     new Response(
       `<!DOCTYPE html><html><head><meta charset="utf-8"><title>HYPERSYNC</title>
-<meta http-equiv="refresh" content="4; url=/radio"></head>
+<meta http-equiv="refresh" content="5; url=/radio"></head>
 <body style="background:#0b0b0d;color:#fff;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
-<p style="max-width:32rem;text-align:center;line-height:1.6">${msg}</p></body></html>`,
+<p style="max-width:32rem;text-align:center;line-height:1.7;padding:0 24px">${msg}</p></body></html>`,
       { headers: { "content-type": "text/html; charset=utf-8", "Cache-Control": "no-store" } }
     );
 
@@ -134,10 +156,7 @@ async function verifyToken(req, pat, base) {
 
   const url = new URL(`${AIR}/${base}/${encodeURIComponent(CONFIG.TABLE)}`);
   url.searchParams.set("maxRecords", "1");
-  url.searchParams.set(
-    "filterByFormula",
-    `{${CONFIG.F_TOKEN}} = "${t}"`
-  );
+  url.searchParams.set("filterByFormula", `{${CONFIG.F_TOKEN}} = "${t}"`);
 
   const find = await fetch(url, { headers: { Authorization: `Bearer ${pat}` } });
   if (!find.ok) return page("Something went wrong. Please try again later.");
@@ -174,10 +193,11 @@ export default async (req) => {
 
   const path = new URL(req.url).pathname;
 
+  if (path === "/api/terms") return serveTerms(pat, base);
   if (path === "/api/verify") return verifyToken(req, pat, base);
-  if (req.method !== "POST") return Response.json({ error: "POST only" }, { status: 405 });
 
+  if (req.method !== "POST") return Response.json({ error: "POST only" }, { status: 405 });
   return createSubmission(req, pat, base);
 };
 
-export const config = { path: ["/api/submit-track", "/api/verify"] };
+export const config = { path: ["/api/submit-track", "/api/verify", "/api/terms"] };
