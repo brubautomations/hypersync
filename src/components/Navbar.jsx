@@ -11,6 +11,7 @@ const LINKS = [
   { label: 'Schedule', path: '/schedule' },
   { label: 'Shop', path: '/shop' },
   { label: 'Messages', path: '/messages' },
+  { label: 'Submit', path: '/submit' },
 ]
 
 function SignInModal({ onClose }) {
