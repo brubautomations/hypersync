@@ -183,8 +183,11 @@ export default function Submit() {
             presentation, and music curated for different parts of the day.
           </p>
           <p>
-            If your track fits one of our shows, we'll put it into rotation as part of the
-            LIVE broadcast.
+            If your track fits one of our shows, we'll put it into rotation as part of the{' '}
+            <span style={{
+              color: '#ff3b30', fontWeight: 800, letterSpacing: '0.04em',
+              animation: 'hsLiveBlink 1.4s ease-in-out infinite',
+            }}>LIVE</span> broadcast.
           </p>
           <p>
             Independent artists are welcome to submit. Your music stays yours.
@@ -310,6 +313,16 @@ export default function Submit() {
           TUNE IN TO EVERYTHING
         </p>
       </section>
+
+      <style>{`
+        @keyframes hsLiveBlink {
+          0%, 100% { opacity: 1; }
+          50%      { opacity: 0.25; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          @keyframes hsLiveBlink { 0%, 100% { opacity: 1; } }
+        }
+      `}</style>
     </div>
   )
 }
