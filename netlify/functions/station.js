@@ -3,16 +3,31 @@
 // Holds your Airtable token server-side and returns the station data as JSON.
 // Nothing secret ever reaches the browser.
 //
-// In Netlify → Site settings → Environment variables, add:
-//   RADIO_TOKEN     your personal access token (scope: data.records:read)
-//   RADIO_BASE_ID   your radio base id, starts with "app"
+// In Netlify → Site settings → Environment variables:
+//   RADIO_TOKEN     personal access token (scope: data.records:read)
+//   RADIO_BASE_ID   radio base id, starts with "app"
+//
+// TWO STATIONS, ONE FILE.
+// Both share SHOWS, DROPS and ADS. Only the songs table differs.
+// To add or rename a station, edit STATIONS below and nothing else.
+
+const STATIONS = {
+  "/api/station":  { songs: "SONGS",    tag: "station"    },
+  "/api/station2": { songs: "SONGS-V2", tag: "station-v2" },
+};
+
+const DEFAULT_PATH = "/api/station";
 
 const T = {
   SHOWS: "SHOWS",
-  SONGS: "SONGS",
   DROPS: "DROPS",
   ADS:   "ADS",
 };
+
+function stationFor(req) {
+  const path = new URL(req.url).pathname;
+  return STATIONS[path] || STATIONS[DEFAULT_PATH];
+}
 
 async function table(name, token, base) {
   const out = [];
@@ -53,20 +68,26 @@ async function table(name, token, base) {
 // Only ever writes the Duration field, only on rows that already exist.
 // The token stays here on the server — nothing is handled by the browser.
 // ---------------------------------------------------------------------------
-async function writeDurations(req, token, base) {
+async function writeDurations(req, token, base, station) {
   let body;
   try { body = await req.json(); } catch { body = null; }
   const rows = Array.isArray(body?.rows) ? body.rows : [];
   if (!rows.length) return Response.json({ error: "no rows" }, { status: 400 });
 
-  const allowed = { SONGS: 1, DROPS: 1, ADS: 1 };
+  // Only this station's songs table, plus the shared audio tables.
+  const allowed = {};
+  allowed[station.songs.toUpperCase()] = station.songs;
+  allowed[T.DROPS] = T.DROPS;
+  allowed[T.ADS] = T.ADS;
+
   const byTable = {};
   for (const r of rows) {
-    const t = String(r.table || "").toUpperCase();
+    const key = String(r.table || "").toUpperCase();
     const id = String(r.id || "");
     const dur = Math.round(Number(r.dur) || 0);
-    if (!allowed[t] || !id.startsWith("rec") || dur < 1 || dur > 7200) continue;
-    (byTable[t] = byTable[t] || []).push({ id, fields: { Duration: dur } });
+    if (!allowed[key] || !id.startsWith("rec") || dur < 1 || dur > 7200) continue;
+    const real = allowed[key];
+    (byTable[real] = byTable[real] || []).push({ id, fields: { Duration: dur } });
   }
 
   let written = 0;
@@ -99,15 +120,16 @@ async function writeDurations(req, token, base) {
 }
 
 export default async (req) => {
-  // /api/station?fresh=1 skips the edge cache — handy right after editing Airtable
+  // ?fresh=1 skips the edge cache — handy right after editing Airtable
   const fresh = new URL(req.url).searchParams.get("fresh") === "1";
   const token = process.env.RADIO_TOKEN;
   const base = process.env.RADIO_BASE_ID;
+  const station = stationFor(req);
 
   if (req.method === "POST") {
     if (!token || !base)
       return Response.json({ error: "RADIO_TOKEN and RADIO_BASE_ID are not set in Netlify." }, { status: 500 });
-    return writeDurations(req, token, base);
+    return writeDurations(req, token, base, station);
   }
 
   if (!token || !base) {
@@ -130,13 +152,13 @@ export default async (req) => {
   }
 
   try {
-    // SHOWS and SONGS are required. DROPS and ADS are optional — if either
-    // fails, the station carries on with music instead of going dark.
+    // SHOWS and the songs table are required. DROPS and ADS are optional — if
+    // either fails, the station carries on with music instead of going dark.
     const optional = (name) => table(name, token, base).catch(() => []);
 
     const [showRecs, songRecs, dropRecs, adRecs] = await Promise.all([
       table(T.SHOWS, token, base),
-      table(T.SONGS, token, base),
+      table(station.songs, token, base),
       optional(T.DROPS),
       optional(T.ADS),
     ]);
@@ -186,10 +208,9 @@ export default async (req) => {
       return "";
     };
 
-    // "Intro URL" / "Outro URL" on SONGS. Several URLs separated by commas
-    // gives the player variants to choose between.
-    // Attachment cells can hold several files — each is a variant the player
-    // can choose between. Comma-separated URLs work too.
+    // "Intro URL" / "Outro URL" on the songs table. Attachment cells can hold
+    // several files — each is a variant the player can choose between.
+    // Comma-separated URLs work too.
     const urlList = (fields, names) => {
       const out = [];
       for (const n of names) {
@@ -245,6 +266,7 @@ export default async (req) => {
         drops,
         ads,
         at: Date.now(),
+        songsTable: station.songs,
         songFields: songRecs.length ? Object.keys(songRecs[0].fields) : [],
       },
       {
@@ -260,7 +282,7 @@ export default async (req) => {
           "Cache-Control": "public, max-age=0, s-maxage=120, stale-while-revalidate=600",
           "Netlify-CDN-Cache-Control":
             "public, s-maxage=120, stale-while-revalidate=600",
-          "Netlify-Cache-Tag": "station",
+          "Netlify-Cache-Tag": station.tag,
           ...(fresh ? { "Cache-Control": "no-store", "Netlify-CDN-Cache-Control": "no-store" } : {}),
         },
       }
@@ -270,4 +292,4 @@ export default async (req) => {
   }
 };
 
-export const config = { path: "/api/station" };
+export const config = { path: ["/api/station", "/api/station2"] };
