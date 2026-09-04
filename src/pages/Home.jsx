@@ -434,7 +434,12 @@ export default function Home() {
             Tune in to everything.
           </div>
           <p style={{ fontSize: '0.72rem', color: 'var(--faint)' }}>
-            © 2025{new Date().getFullYear() > 2025 ? `\u2013${new Date().getFullYear()}` : ''} HYPERSYNC
+            © 2025
+            <span
+              onClick={() => window.open('/ogradio', 'hypersync_ogradio', 'width=440,height=720')}
+              style={{ cursor: 'inherit' }}
+            >{new Date().getFullYear() > 2025 ? `\u2013${new Date().getFullYear()}` : ''}</span>
+            {' '}HYPERSYNC
           </p>
         </div>
         <div style={{ textAlign: 'center', paddingBottom: 18 }}>

@@ -37,11 +37,12 @@ function Shell() {
 
   // /radio opens in its own browser window — no navbar, no chat rail,
   // nothing but the station.
-  if (pathname === '/radio') {
+  if (pathname === '/radio' || pathname === '/ogradio') {
     return (
       <ErrorBoundary>
         <Routes>
           <Route path="/radio" element={<Radio />} />
+          <Route path="/ogradio" element={<Radio />} />
         </Routes>
       </ErrorBoundary>
     )

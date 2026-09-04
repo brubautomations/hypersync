@@ -14,10 +14,32 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
      TUNE IN   volume   SCHEDULE
    ============================================================ */
 
+/* Two stations run from this one page.
+
+     /radio     the public station  — SONGS-V2
+     /ogradio   the original        — SONGS
+
+   Everything else (art, canvas, clocks, schedule) is identical. */
+
+const STATIONS = {
+  "/ogradio": {
+    STREAM: "https://radio.hypersync.live/stream",
+    NOW: "https://radio.hypersync.live/now",
+    SHOWS: "/api/station",
+  },
+  "/radio": {
+    STREAM: "https://radio.hypersync.live/v2/stream",
+    NOW: "https://radio.hypersync.live/v2/now",
+    SHOWS: "/api/station2",
+  },
+};
+
+const STATION =
+  STATIONS[typeof window !== "undefined" ? window.location.pathname : "/radio"] ||
+  STATIONS["/radio"];
+
 const CFG = {
-  STREAM: "https://radio.hypersync.live/stream",
-  NOW: "https://radio.hypersync.live/now",
-  SHOWS: "/api/station",          // art, canvas and times still come from here
+  ...STATION,
   NOW_EVERY: 8000,                // how often to ask what's playing
   LOGO: "/radio-logo.png",
 };
