@@ -38,6 +38,7 @@ const CONFIG = {
   F_URL: "File URL",
   F_ARTIST: "Artist Name",
   F_TITLE: "Track Title",
+  F_AUDIO: "Audio",
   F_NAME: "Submitter Name",
   F_EMAIL: "Submitter Email",
   F_AS: "Submitting As",
@@ -69,6 +70,7 @@ const CONFIG = {
   L_DECIDED: "Decided At",
   L_FILE: "File URL",
 
+  PENDING_FOLDER: "submissions/pending/",
   APPROVED_FOLDER: "submissions/approved/",
   REJECTED_FOLDER: "submissions/rejected/",
 
@@ -241,13 +243,24 @@ export default async () => {
   for (const row of rows) {
     const f = row.fields;
     const status = f[CONFIG.F_STATUS];
-    const url = f[CONFIG.F_URL];
-    if (!url) continue;
 
     const approved = CONFIG.APPROVE.includes(status);
     const folder = approved ? CONFIG.APPROVED_FOLDER : CONFIG.REJECTED_FOLDER;
 
-    const currentKey = decodeURIComponent(String(url).replace(publicBase + "/", ""));
+    // Where the file is right now. Prefer the stored R2 link; if it's blank,
+    // fall back to the attachment's filename, which Airtable keeps from the
+    // original R2 URL it fetched.
+    const url = f[CONFIG.F_URL];
+    const attached = Array.isArray(f[CONFIG.F_AUDIO]) ? f[CONFIG.F_AUDIO][0] : null;
+
+    let currentKey = "";
+    if (url) {
+      currentKey = decodeURIComponent(String(url).replace(publicBase + "/", ""));
+    } else if (attached && attached.filename) {
+      currentKey = CONFIG.PENDING_FOLDER + attached.filename;
+    }
+    if (!currentKey) continue;
+
     const filename = currentKey.split("/").pop();
     const newKey = folder + filename;
     const newUrl = `${publicBase}/${encodeKey(newKey)}`;
