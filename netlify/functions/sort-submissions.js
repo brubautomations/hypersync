@@ -1,6 +1,7 @@
 // netlify/functions/sort-submissions.js
 //
-// Runs every 5 minutes and clears out SUBMISSIONS.
+// Clears out SUBMISSIONS. sort-tick.js calls this every 8 hours, and you
+// can run it any time by opening /api/sort-submissions in a browser.
 //
 //   Status = Approved
 //     → file moves to submissions/approved/
