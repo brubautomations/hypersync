@@ -315,7 +315,6 @@ export default async () => {
   });
 };
 
-export const config = {
-  path: "/api/sort-submissions",
-  schedule: "*/5 * * * *",
-};
+// Netlify won't let a scheduled function be opened in a browser, so this
+// runs on demand instead. Something calls /api/sort-submissions on a timer.
+export const config = { path: "/api/sort-submissions" };
