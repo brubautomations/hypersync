@@ -32,6 +32,7 @@ const CONFIG = {
   F_STATUS: "Status",
   F_VERIFIED: "Verified",
   F_TOKEN: "Verify Token",
+  F_URL: "File URL",
 
   TERMS_F_TEXT: "Text",
 
@@ -110,6 +111,7 @@ async function createSubmission(req, pat, base) {
   fields[CONFIG.F_ARTIST] = artist;
   fields[CONFIG.F_TITLE] = title;
   fields[CONFIG.F_AUDIO] = [{ url: audioUrl }];
+  fields[CONFIG.F_URL] = audioUrl;
   fields[CONFIG.F_LINKS] = clean(body.links, 2000);
   fields[CONFIG.F_COUNTRY] = clean(body.country, 100);
   fields[CONFIG.F_PRO] = clean(body.pro, 200);
