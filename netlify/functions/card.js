@@ -29,8 +29,10 @@ const CONFIG = {
   // Logo sits under the word. Put the file in your public folder so it
   // deploys with the site, then point this at it.
   LOGO_URL: "https://hypersync.live/card-logo.png",
-  LOGO_WIDTH: 420,            // how wide the logo sits on the 1080 card
-  LOGO_BOTTOM: 60,            // gap from the bottom edge
+  LOGO_WIDTH: 380,            // how wide the logo sits on the 1080 card
+  LOGO_BOTTOM: 70,            // gap from the bottom edge
+
+  WORD_BASELINE: 260,         // word sits this far up from the bottom
 };
 
 let font = null;
@@ -74,7 +76,7 @@ function overlay(word) {
   const text = String(word || "").toUpperCase().slice(0, 40);
 
   const wordPath = text
-    ? `<path d="${line(text, w / 2, w - 150, CONFIG.WORD_MAX, inner, 2)}" fill="${CONFIG.WORD_COLOR}"/>`
+    ? `<path d="${line(text, w / 2, w - CONFIG.WORD_BASELINE, CONFIG.WORD_MAX, inner, 2)}" fill="${CONFIG.WORD_COLOR}"/>`
     : "";
 
   return Buffer.from(`
@@ -86,7 +88,7 @@ function overlay(word) {
       <stop offset="100%" stop-color="#000" stop-opacity="0.92"/>
     </linearGradient>
   </defs>
-  <rect x="0" y="${Math.round(w * 0.45)}" width="${w}" height="${Math.round(w * 0.55)}" fill="url(#fade)"/>
+  <rect x="0" y="${Math.round(w * 0.42)}" width="${w}" height="${Math.round(w * 0.58)}" fill="url(#fade)"/>
   ${wordPath}
 </svg>`);
 }
