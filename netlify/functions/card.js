@@ -5,8 +5,8 @@
 //   /api/card?img=<image url>&word=CRITICISM
 //
 // The word is turned into vector outlines from a bundled font, so it never
-// depends on whatever fonts the server happens to have. That's what fixed
-// the empty boxes.
+// depends on whatever fonts the server happens to have. The logo underneath
+// is fetched from the site and cached.
 //
 // Needs in package.json: sharp, opentype.js
 // Needs in netlify.toml: included_files for the fonts folder
@@ -24,9 +24,13 @@ const CONFIG = {
   WORD_COLOR: "#FFD400",      // HYPERSYNC yellow
   WORD_MAX: 150,              // biggest the word ever gets
   SIDE_PADDING: 90,           // keeps the word off the edges
-  FOOTER: "HYPERSYNC.LIVE",
-  FOOTER_SIZE: 30,
   FONT: "netlify/functions/fonts/Anton-Regular.ttf",
+
+  // Logo sits under the word. Put the file in your public folder so it
+  // deploys with the site, then point this at it.
+  LOGO_URL: "https://hypersync.live/card-logo.png",
+  LOGO_WIDTH: 420,            // how wide the logo sits on the 1080 card
+  LOGO_BOTTOM: 60,            // gap from the bottom edge
 };
 
 let font = null;
@@ -73,9 +77,6 @@ function overlay(word) {
     ? `<path d="${line(text, w / 2, w - 150, CONFIG.WORD_MAX, inner, 2)}" fill="${CONFIG.WORD_COLOR}"/>`
     : "";
 
-  const footPath =
-    `<path d="${line(CONFIG.FOOTER, w / 2, w - 70, CONFIG.FOOTER_SIZE, inner, 7)}" fill="#ffffff" fill-opacity="0.85"/>`;
-
   return Buffer.from(`
 <svg width="${w}" height="${w}" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -87,8 +88,24 @@ function overlay(word) {
   </defs>
   <rect x="0" y="${Math.round(w * 0.45)}" width="${w}" height="${Math.round(w * 0.55)}" fill="url(#fade)"/>
   ${wordPath}
-  ${footPath}
 </svg>`);
+}
+
+let logoCache = null;
+
+async function logo() {
+  if (logoCache !== null) return logoCache;
+  try {
+    const res = await fetch(CONFIG.LOGO_URL);
+    if (!res.ok) throw new Error(String(res.status));
+    logoCache = await sharp(Buffer.from(await res.arrayBuffer()))
+      .resize({ width: CONFIG.LOGO_WIDTH })
+      .png()
+      .toBuffer();
+  } catch (e) {
+    logoCache = false;        // card still works without it
+  }
+  return logoCache;
 }
 
 export default async (request) => {
@@ -106,9 +123,21 @@ export default async (request) => {
 
     const input = Buffer.from(await src.arrayBuffer());
 
+    const layers = [{ input: overlay(word), top: 0, left: 0 }];
+
+    const mark = await logo();
+    if (mark) {
+      const meta = await sharp(mark).metadata();
+      layers.push({
+        input: mark,
+        left: Math.round((CONFIG.SIZE - meta.width) / 2),
+        top: CONFIG.SIZE - meta.height - CONFIG.LOGO_BOTTOM,
+      });
+    }
+
     const out = await sharp(input)
       .resize(CONFIG.SIZE, CONFIG.SIZE, { fit: "cover", position: "attention" })
-      .composite([{ input: overlay(word), top: 0, left: 0 }])
+      .composite(layers)
       .jpeg({ quality: 90 })
       .toBuffer();
 
