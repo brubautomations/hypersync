@@ -1,70 +1,162 @@
-// ============================================================
-// /api/portal-upload — presigned R2 upload URLs (photos/videos)
-// The browser asks here for permission, then PUTs the file
-// STRAIGHT to Cloudflare R2 — no size squeeze through Netlify.
+// netlify/functions/portal-upload.mjs
 //
-// Netlify env needed (all from your Cloudflare dashboard):
-//   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
-//   R2_BUCKET, R2_PUBLIC_BASE  (e.g. https://media.hypersync.live
-//   or the bucket's public r2.dev URL, no trailing slash)
-// Bucket CORS must allow PUT from https://www.hypersync.live
-// Not configured yet? The endpoint says so and the portal
-// falls back to paste-a-URL. Nothing breaks.
-// ============================================================
-import crypto from "node:crypto";
-import { getSessionFromRequest, json, err } from "./_shared.mjs";
+// Hands a signed-in artist a short-lived URL to upload a photo or video to.
+// The file goes browser to storage directly, so there is no size ceiling
+// from the function.
+//
+// The portal has its own bucket, kept separate from song submissions.
+//
+// Netlify environment variables required:
+//   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
+//   R2_PORTAL_BUCKET        the portal's own bucket name
+//   R2_PORTAL_PUBLIC_BASE   that bucket's public URL, no trailing slash
+//
+// No npm packages. Request signing is done inline.
+//
+// EDIT ONLY THE CONFIG BLOCK BELOW.
 
-const {
-  R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_PUBLIC_BASE,
-} = process.env;
+const CONFIG = {
+  PREFIX: "portal/",
+  MAX_BYTES: 500 * 1024 * 1024,     // 500MB, enough for a long video
+  URL_TTL_SECONDS: 900,             // 15 minutes to finish the upload
 
-const sha256hex = (s) => crypto.createHash("sha256").update(s).digest("hex");
-const hmac = (key, s) => crypto.createHmac("sha256", key).update(s).digest();
+  ALLOWED: {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "video/mp4": "mp4",
+    "video/quicktime": "mov",
+    "video/webm": "webm",
+  },
+};
 
-// AWS SigV4 presigned PUT for R2's S3 endpoint
-function presignPut(key, expires = 600) {
-  const host = `${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
-  const now = new Date();
-  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
-  const date = amzDate.slice(0, 8);
-  const scope = `${date}/auto/s3/aws4_request`;
+const enc = new TextEncoder();
 
-  const q = new URLSearchParams({
+async function hmac(key, data) {
+  const k = await crypto.subtle.importKey(
+    "raw",
+    typeof key === "string" ? enc.encode(key) : key,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  return new Uint8Array(await crypto.subtle.sign("HMAC", k, enc.encode(data)));
+}
+
+const hex = (buf) => Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
+
+async function sha256hex(text) {
+  return hex(new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(text))));
+}
+
+const encodeKey = (key) => key.split("/").map(encodeURIComponent).join("/");
+
+async function presignPut(objectKey, expires) {
+  const accountId = process.env.R2_ACCOUNT_ID;
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  const bucket = process.env.R2_PORTAL_BUCKET;
+
+  const host = `${accountId}.r2.cloudflarestorage.com`;
+  const path = `/${bucket}/${encodeKey(objectKey)}`;
+
+  const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, "");
+  const dateStamp = amzDate.slice(0, 8);
+  const scope = `${dateStamp}/auto/s3/aws4_request`;
+
+  const query = new URLSearchParams({
     "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
-    "X-Amz-Credential": `${R2_ACCESS_KEY_ID}/${scope}`,
+    "X-Amz-Credential": `${accessKeyId}/${scope}`,
     "X-Amz-Date": amzDate,
     "X-Amz-Expires": String(expires),
     "X-Amz-SignedHeaders": "host",
   });
-  const path = `/${R2_BUCKET}/${key}`;
-  const canonical = ["PUT", path, q.toString(), `host:${host}\n`, "host", "UNSIGNED-PAYLOAD"].join("\n");
-  const toSign = ["AWS4-HMAC-SHA256", amzDate, scope, sha256hex(canonical)].join("\n");
-  let k = hmac("AWS4" + R2_SECRET_ACCESS_KEY, date);
-  for (const part of ["auto", "s3", "aws4_request"]) k = hmac(k, part);
-  const sig = crypto.createHmac("sha256", k).update(toSign).digest("hex");
-  return `https://${host}${path}?${q.toString()}&X-Amz-Signature=${sig}`;
+
+  const canonicalQuery = [...query.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join("&");
+
+  const canonicalRequest = [
+    "PUT",
+    path,
+    canonicalQuery,
+    `host:${host}\n`,
+    "host",
+    "UNSIGNED-PAYLOAD",
+  ].join("\n");
+
+  const stringToSign = [
+    "AWS4-HMAC-SHA256",
+    amzDate,
+    scope,
+    await sha256hex(canonicalRequest),
+  ].join("\n");
+
+  let key = await hmac("AWS4" + secretAccessKey, dateStamp);
+  key = await hmac(key, "auto");
+  key = await hmac(key, "s3");
+  key = await hmac(key, "aws4_request");
+  const signature = hex(await hmac(key, stringToSign));
+
+  return `https://${host}${path}?${canonicalQuery}&X-Amz-Signature=${signature}`;
 }
 
-export default async function handler(req) {
-  if (req.method !== "POST") return err("Method not allowed", 405);
-  const user = getSessionFromRequest(req);
-  if (!user || !user.portal || !user.artist_id) return err("Sign in first", 401);
-  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET || !R2_PUBLIC_BASE) {
-    return err("Uploads not configured yet", 503);
+function id() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+
+export default async (req) => {
+  if (req.method !== "POST") {
+    return Response.json({ error: "POST only" }, { status: 405 });
+  }
+
+  // Only a signed-in artist gets an upload slot.
+  const auth = req.headers.get("authorization") || "";
+  if (!/^Bearer\s+\S+/.test(auth)) {
+    return Response.json({ error: "Please sign in again." }, { status: 401 });
+  }
+
+  const bucket = process.env.R2_PORTAL_BUCKET;
+  const publicBase = process.env.R2_PORTAL_PUBLIC_BASE;
+
+  if (!process.env.R2_ACCOUNT_ID || !process.env.R2_ACCESS_KEY_ID ||
+      !process.env.R2_SECRET_ACCESS_KEY || !bucket || !publicBase) {
+    return Response.json({ error: "Uploads are not configured yet." }, { status: 500 });
   }
 
   let body;
-  try { body = await req.json(); } catch { return err("Bad request"); }
+  try { body = await req.json(); } catch { body = null; }
+
   const type = String(body?.type || "");
-  const okTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/quicktime", "video/webm"];
-  if (!okTypes.includes(type)) return err("Unsupported file type");
+  const size = Number(body?.size || 0);
 
-  const ext = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm" }[type];
-  const key = `portal/${user.artist_id}/${Date.now()}-${crypto.randomBytes(4).toString("hex")}.${ext}`;
+  const ext = CONFIG.ALLOWED[type];
+  if (!ext) {
+    return Response.json(
+      { error: "That file type isn't supported. Use JPG, PNG, WEBP, GIF, MP4, MOV or WEBM." },
+      { status: 400 }
+    );
+  }
 
-  return json({
-    ok: true,
-    upload_url: presignPut(key),
-    public_url: `${R2_PUBLIC_BASE.replace(/\/$/, "")}/${key}`,
-  });
-}
+  if (size && size > CONFIG.MAX_BYTES) {
+    return Response.json(
+      { error: "File is too large. Maximum is " + Math.round(CONFIG.MAX_BYTES / 1048576) + "MB." },
+      { status: 400 }
+    );
+  }
+
+  const objectKey = CONFIG.PREFIX + id() + "." + ext;
+
+  return Response.json(
+    {
+      upload_url: await presignPut(objectKey, CONFIG.URL_TTL_SECONDS),
+      public_url: publicBase + "/" + encodeKey(objectKey),
+      content_type: type,
+    },
+    { headers: { "Cache-Control": "no-store" } }
+  );
+};
+
+export const config = { path: "/api/portal-upload" };

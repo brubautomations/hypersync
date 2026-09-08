@@ -31,6 +31,97 @@ const inputStyle = {
   border: '1px solid var(--line)', background: 'var(--card)',
   color: 'var(--text)', fontSize: '0.9rem', fontFamily: 'inherit', outline: 'none',
 }
+/* One upload control, used anywhere an artist needs to attach a file.
+   Sends the file straight from their browser to our storage and hands
+   back the finished URL. */
+function UploadButton({ label, accept, onDone, onError }) {
+  const [busy, setBusy] = useState(false)
+
+  const pick = async e => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setBusy(true)
+    try {
+      const res = await fetch('/api/portal-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ type: file.type, size: file.size }),
+      })
+      const grant = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(grant.error || 'Upload not available')
+
+      const put = await fetch(grant.upload_url, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      })
+      if (!put.ok) throw new Error('Upload failed, please try again')
+
+      onDone(grant.public_url)
+    } catch (err) {
+      onError?.(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <label className="btn btn--quiet" style={{
+      cursor: busy ? 'wait' : 'pointer', fontSize: '0.72rem',
+      padding: '9px 14px', whiteSpace: 'nowrap',
+    }}>
+      {busy ? 'Uploading…' : label}
+      <input type="file" accept={accept} style={{ display: 'none' }} onChange={pick} disabled={busy} />
+    </label>
+  )
+}
+
+
+/* The portal runs light while the fan site stays dark. Everything here is
+   plain CSS variables, so every component below inherits it without change.
+   The gold stays exactly as it is. */
+const LIGHT_THEME = `
+  .portal-light {
+    --bg:    #F4F5F7;
+    --card:  #FFFFFF;
+    --panel: #FFFFFF;
+    --ink:   #FFFFFF;
+    --line:  #DDE0E5;
+    --text:  #14161A;
+    --dim:   #4A4F58;
+    --faint: #868C96;
+    --volt:  #C98A00;
+    --volt-grad: linear-gradient(135deg, #FFD400, #FFAA00);
+    --glow:  0 0 0 3px rgba(255,212,0,0.25);
+    color: var(--text);
+  }
+  .portal-light .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    box-shadow: 0 1px 2px rgba(20,22,26,0.05);
+  }
+  .portal-light .btn--volt {
+    background: linear-gradient(135deg, #FFD400, #FFAA00);
+    color: #14120A;
+    border: none;
+  }
+  .portal-light .btn--quiet {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    color: var(--dim);
+  }
+  .portal-light .btn--quiet:hover { border-color: #C0C4CC; }
+  .portal-light input,
+  .portal-light textarea,
+  .portal-light select {
+    color-scheme: light;
+  }
+  .portal-light input::placeholder,
+  .portal-light textarea::placeholder { color: #A6ACB6; }
+  .portal-light .display { color: var(--text); }
+`
+
 const labelStyle = {
   fontSize: '0.64rem', fontWeight: 800, letterSpacing: '0.14em',
   color: 'var(--faint)', textTransform: 'uppercase', display: 'block', marginBottom: 6,
@@ -40,7 +131,7 @@ function Msg({ error, ok }) {
   return (
     <div style={{
       fontSize: '0.76rem', padding: '10px 14px', borderRadius: 8, marginBottom: 12,
-      color: error ? '#FF9A9A' : 'var(--volt)',
+      color: error ? '#C0392B' : 'var(--volt)',
       background: error ? 'rgba(255,0,0,0.06)' : 'rgba(255,212,0,0.06)',
       border: `1px solid ${error ? 'rgba(255,80,80,0.25)' : 'rgba(255,212,0,0.25)'}`,
     }}>{error || ok}</div>
@@ -70,7 +161,8 @@ function Door({ onEnter }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 20, background: 'var(--bg, #0C0C11)' }}>
+    <div className="portal-light" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 20, background: 'var(--bg)' }}>
+      <style>{LIGHT_THEME}</style>
       <div style={{ width: 'min(94vw, 420px)' }}>
         <div style={{ textAlign: 'center', marginBottom: 26 }}>
           <div className="display" style={{ fontSize: '1.7rem', letterSpacing: '0.04em' }}>
@@ -197,12 +289,20 @@ function ProfileRoom() {
           <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={4} value={bio} onChange={e => setBio(e.target.value)} maxLength={1000} />
         </div>
         <div>
-          <label style={labelStyle}>Banner image URL</label>
-          <input style={inputStyle} value={banner} onChange={e => setBanner(e.target.value)} placeholder="https://…" />
+          <label style={labelStyle}>Banner image</label>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input style={inputStyle} value={banner} onChange={e => setBanner(e.target.value)} placeholder="Upload a file, or paste a link" />
+            <UploadButton label="Upload" accept="image/*" onDone={setBanner} onError={setError} />
+          </div>
+          {banner && <img src={banner} alt="" style={{ marginTop: 10, width: '100%', maxHeight: 120, objectFit: 'cover', borderRadius: 10 }} />}
         </div>
         <div>
-          <label style={labelStyle}>Avatar image URL</label>
-          <input style={inputStyle} value={avatar} onChange={e => setAvatar(e.target.value)} placeholder="https://…" />
+          <label style={labelStyle}>Avatar image</label>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input style={inputStyle} value={avatar} onChange={e => setAvatar(e.target.value)} placeholder="Upload a file, or paste a link" />
+            <UploadButton label="Upload" accept="image/*" onDone={setAvatar} onError={setError} />
+          </div>
+          {avatar && <img src={avatar} alt="" style={{ marginTop: 10, width: 72, height: 72, objectFit: 'cover', borderRadius: '50%' }} />}
         </div>
         <div>
           <label style={labelStyle}>DM price (credits per message)</label>
@@ -568,8 +668,11 @@ function MarketRoom() {
           </div>
           <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '2fr 1fr 1fr' }}>
             <div>
-              <label style={labelStyle}>Image URL</label>
-              <input style={inputStyle} value={editing.image_url || ''} onChange={e => set('image_url', e.target.value)} placeholder="https://…" />
+              <label style={labelStyle}>Item image</label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input style={inputStyle} value={editing.image_url || ''} onChange={e => set('image_url', e.target.value)} placeholder="Upload, or paste a link" />
+                <UploadButton label="Upload" accept="image/*" onDone={u => set('image_url', u)} />
+              </div>
             </div>
             <div>
               <label style={labelStyle}>Price</label>
@@ -707,14 +810,21 @@ export default function Portal() {
   }, [])
   useEffect(check, [check])
 
-  if (authed === null) return <div style={{ minHeight: '100vh', background: 'var(--bg, #0C0C11)' }} />
+  if (authed === null) return (
+    <div className="portal-light" style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      <style>{LIGHT_THEME}</style>
+    </div>
+  )
   if (!authed) return <Door onEnter={() => setAuthed(true)} />
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', background: 'var(--bg, #0C0C11)' }}>
+    <div className="portal-light" style={{ minHeight: '100vh', display: 'flex', background: 'var(--bg)' }}>
+      <style>{LIGHT_THEME}</style>
+
       {/* sidebar */}
       <aside style={{
         width: 200, flexShrink: 0, borderRight: '1px solid var(--line)',
+        background: '#FFFFFF',
         padding: '26px 14px', display: 'flex', flexDirection: 'column', gap: 4,
       }}>
         <div className="display" style={{ fontSize: '0.85rem', letterSpacing: '0.06em', padding: '0 10px', marginBottom: 18 }}>
@@ -726,7 +836,7 @@ export default function Portal() {
             textAlign: 'left', padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
             fontFamily: 'inherit', fontSize: '0.78rem', fontWeight: 700,
             border: 'none',
-            background: room === r.key ? 'rgba(255,212,0,0.1)' : 'transparent',
+            background: room === r.key ? 'rgba(255,180,0,0.16)' : 'transparent',
             color: room === r.key ? 'var(--volt)' : 'var(--dim)',
           }}>
             {r.label}
