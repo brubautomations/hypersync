@@ -26,7 +26,6 @@ const CFG = {
   R_POST: "Post ID",
   R_USER: "Fan Email",       // add this field to REACTIONS, single line text
   R_TYPE: "Type",
-  R_LINK: "Post (Link)",
 
   // COMMENTS fields
   C_POST: "Post ID",
@@ -34,7 +33,6 @@ const CFG = {
   C_HANDLE: "Username",
   C_BODY: "Content",
   C_TYPE: "Type",
-  C_LINK: "Post (Link)",
   C_IS_ARTIST: "Is Artist",
 
   LIKE_TYPE: "like",
@@ -171,7 +169,6 @@ export default async function handler(req) {
         fields[CFG.R_POST] = postId;
         fields[CFG.R_USER] = user.email;
         fields[CFG.R_TYPE] = CFG.LIKE_TYPE;
-        fields[CFG.R_LINK] = [postId];
         const why = await addRecord(CFG.REACTIONS, fields);
         if (why) return err(why, 502);
       }
@@ -200,7 +197,6 @@ export default async function handler(req) {
     fields[CFG.C_HANDLE] = handle;
     fields[CFG.C_BODY] = text;
     fields[CFG.C_TYPE] = CFG.COMMENT_TYPE;
-    fields[CFG.C_LINK] = [postId];
     fields[CFG.C_IS_ARTIST] = false;
 
     const why = await addRecord(CFG.COMMENTS, fields);
