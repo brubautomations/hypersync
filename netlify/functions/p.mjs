@@ -20,7 +20,11 @@ const CONFIG = {
   F_CONTENT: "content",
   F_IMAGES: "image_urls",
   F_ARTIST_NAME: "artist_name",
-  F_ARTIST_LINK: "artist",      // link field holding the ARTIST record
+
+  // POSTS stores the artist's name, not a record link, so the artist page
+  // is found by matching that name in ARTIST.
+  ARTIST_TABLE: "ARTIST",
+  A_NAME: "name",
 
   SITE: "https://hypersync.live",
   FALLBACK: "/feed",
@@ -72,6 +76,24 @@ function page({ title, description, image, selfUrl, landing }) {
 </html>`;
 }
 
+// POSTS holds a name; the page needs the ARTIST record id.
+async function findArtist(name) {
+  const clean = String(name || "").trim();
+  if (!clean) return "";
+
+  const formula = `LOWER({${CONFIG.A_NAME}}) = "${clean.toLowerCase().replace(/"/g, '\\"')}"`;
+  const url = `https://api.airtable.com/v0/${CONFIG.BASE_ID}/${encodeURIComponent(CONFIG.ARTIST_TABLE)}` +
+    `?maxRecords=1&filterByFormula=${encodeURIComponent(formula)}`;
+
+  try {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${API_KEY}` } });
+    if (!res.ok) return "";
+    return (await res.json()).records?.[0]?.id || "";
+  } catch {
+    return "";
+  }
+}
+
 export default async (request) => {
   const fallback = CONFIG.SITE + CONFIG.FALLBACK;
   const id = new URL(request.url).pathname.split("/").filter(Boolean).pop();
@@ -99,9 +121,8 @@ export default async (request) => {
     const isVideo = /\.(mp4|mov|webm|m4v)(\?|$)/i.test(first || "");
     const image = first && !isVideo ? first : CONFIG.FALLBACK_IMAGE;
 
-    // Land on the artist's page when we know it, the feed otherwise.
-    const link = f[CONFIG.F_ARTIST_LINK];
-    const artistId = Array.isArray(link) ? link[0] : link;
+    // Land on the artist's page when we can find it, the feed otherwise.
+    const artistId = await findArtist(artistName);
     const landing = artistId ? `${CONFIG.SITE}/artists/${artistId}?post=${id}` : fallback;
 
     return new Response(
