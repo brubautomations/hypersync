@@ -122,6 +122,13 @@ const LIGHT_THEME = `
   .portal-light .display { color: var(--text); }
 `
 
+/* Theme choice lives in the browser, so it sticks between visits. */
+const THEME_KEY = 'hs_portal_theme'
+const getTheme = () => {
+  try { return localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark' } catch { return 'dark' }
+}
+const saveTheme = t => { try { localStorage.setItem(THEME_KEY, t) } catch {} }
+
 const labelStyle = {
   fontSize: '0.64rem', fontWeight: 800, letterSpacing: '0.14em',
   color: 'var(--faint)', textTransform: 'uppercase', display: 'block', marginBottom: 6,
@@ -140,6 +147,7 @@ function Msg({ error, ok }) {
 
 /* ---------- the door ---------- */
 function Door({ onEnter }) {
+  const [theme] = useState(getTheme)
   const [mode, setMode] = useState('login') // login | activate
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -161,7 +169,8 @@ function Door({ onEnter }) {
   }
 
   return (
-    <div className="portal-light" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 20, background: 'var(--bg)' }}>
+    <div className={theme === 'light' ? 'portal-light' : undefined}
+      style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 20, background: 'var(--bg, #0C0C11)' }}>
       <style>{LIGHT_THEME}</style>
       <div style={{ width: 'min(94vw, 420px)' }}>
         <div style={{ textAlign: 'center', marginBottom: 26 }}>
@@ -803,6 +812,12 @@ const ROOMS = [
 export default function Portal() {
   const [authed, setAuthed] = useState(null) // null = checking
   const [room, setRoom] = useState('profile')
+  const [theme, setTheme] = useState(getTheme)
+
+  const flipTheme = () => {
+    const next = theme === 'light' ? 'dark' : 'light'
+    setTheme(next); saveTheme(next)
+  }
 
   const check = useCallback(() => {
     if (!getToken()) { setAuthed(false); return }
@@ -811,20 +826,22 @@ export default function Portal() {
   useEffect(check, [check])
 
   if (authed === null) return (
-    <div className="portal-light" style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+    <div className={theme === 'light' ? 'portal-light' : undefined}
+      style={{ minHeight: '100vh', background: 'var(--bg, #0C0C11)' }}>
       <style>{LIGHT_THEME}</style>
     </div>
   )
   if (!authed) return <Door onEnter={() => setAuthed(true)} />
 
   return (
-    <div className="portal-light" style={{ minHeight: '100vh', display: 'flex', background: 'var(--bg)' }}>
+    <div className={theme === 'light' ? 'portal-light' : undefined}
+      style={{ minHeight: '100vh', display: 'flex', background: 'var(--bg, #0C0C11)' }}>
       <style>{LIGHT_THEME}</style>
 
       {/* sidebar */}
       <aside style={{
         width: 200, flexShrink: 0, borderRight: '1px solid var(--line)',
-        background: '#FFFFFF',
+        background: theme === 'light' ? '#FFFFFF' : 'transparent',
         padding: '26px 14px', display: 'flex', flexDirection: 'column', gap: 4,
       }}>
         <div className="display" style={{ fontSize: '0.85rem', letterSpacing: '0.06em', padding: '0 10px', marginBottom: 18 }}>
@@ -846,6 +863,14 @@ export default function Portal() {
           </button>
         ))}
         <div style={{ flex: 1 }} />
+        <button onClick={flipTheme} style={{
+          textAlign: 'left', padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
+          fontFamily: 'inherit', fontSize: '0.72rem', fontWeight: 700, marginBottom: 6,
+          border: '1px solid var(--line)', background: 'transparent', color: 'var(--dim)',
+        }}>
+          {theme === 'light' ? 'Dark mode' : 'Light mode'}
+        </button>
+
         <button onClick={() => { setToken(''); setAuthed(false) }} style={{
           textAlign: 'left', padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
           fontFamily: 'inherit', fontSize: '0.72rem', fontWeight: 700,
