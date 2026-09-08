@@ -98,12 +98,15 @@ async function listComments(postId) {
   }));
 }
 
+// Returns "" on success, or Airtable's own complaint so the reason
+// reaches the browser instead of a bare 502.
 async function addRecord(table, fields) {
   const res = await at(encodeURIComponent(table), {
     method: "POST",
     body: JSON.stringify({ records: [{ fields }], typecast: true }),
   });
-  return res.ok;
+  if (res.ok) return "";
+  return `${table}: ${(await res.text()).slice(0, 300)}`;
 }
 
 async function deleteRecord(table, id) {
@@ -158,7 +161,8 @@ export default async function handler(req) {
         const fields = {};
         fields[CFG.R_POST] = postId;
         fields[CFG.R_USER] = user.email;
-        if (!(await addRecord(CFG.REACTIONS, fields))) return err("Couldn't save that", 502);
+        const why = await addRecord(CFG.REACTIONS, fields);
+        if (why) return err(why, 502);
       }
 
       if (!body.like && mine.length) {
@@ -185,11 +189,12 @@ export default async function handler(req) {
     fields[CFG.C_HANDLE] = handle;
     fields[CFG.C_BODY] = text;
 
-    if (!(await addRecord(CFG.COMMENTS, fields))) return err("Comment failed", 502);
+    const why = await addRecord(CFG.COMMENTS, fields);
+    if (why) return err(why, 502);
 
     return json({ ok: true, comments: await listComments(postId) });
-  } catch {
-    return err("Temporarily unavailable", 502);
+  } catch (e) {
+    return err("post-actions: " + (e?.message || e), 502);
   }
 }
 
