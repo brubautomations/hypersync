@@ -16,6 +16,11 @@
   to = "/.netlify/functions/n/:splat"
   status = 200
 
+[[redirects]]
+  from = "/p/*"
+  to = "/.netlify/functions/p/:splat"
+  status = 200
+
 # SPA fallback
 [[redirects]]
   from = "/*"

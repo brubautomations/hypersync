@@ -20,6 +20,7 @@ export default function PostCard({ post, artist }) {
   const [expanded, setExpanded] = useState(false)
   const [imgOk, setImgOk] = useState(true)
   const [lightbox, setLightbox] = useState(false)
+  const [shared, setShared] = useState(false)
 
   const { text } = lang && segments[lang]
     ? { text: segments[lang] }
@@ -33,6 +34,20 @@ export default function PostCard({ post, artist }) {
   const isVideo = /\.(mp4|mov|webm|m4v)(\?|$)/i.test(image)
 
   const switchLang = (code) => { setLang(code); setPreferredLang(code) }
+
+  // Shareable link. It carries its own preview card, so pasting it anywhere
+  // shows the photo, the artist and HYPERSYNC.LIVE.
+  const shareUrl = `https://hypersync.live/p/${post.id}`
+
+  const share = async () => {
+    const data = { title: `${name} on HYPERSYNC`, text: shown.slice(0, 120), url: shareUrl }
+    try {
+      if (navigator.share) { await navigator.share(data); return }
+      await navigator.clipboard.writeText(shareUrl)
+      setShared(true)
+      setTimeout(() => setShared(false), 2000)
+    } catch { /* dismissed */ }
+  }
 
   return (
     <article className="card reveal" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -134,6 +149,24 @@ export default function PostCard({ post, artist }) {
           <img src={image} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
         </div>
       )}
+
+      {/* ── share ── */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 16px 0' }}>
+        <button onClick={share} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 7,
+          background: 'none', border: '1px solid var(--line)', borderRadius: 999,
+          padding: '6px 14px', cursor: 'pointer', fontFamily: 'inherit',
+          fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.06em',
+          color: shared ? 'var(--volt)' : 'var(--dim)',
+        }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+            <line x1="8.6" y1="10.5" x2="15.4" y2="6.5" /><line x1="8.6" y1="13.5" x2="15.4" y2="17.5" />
+          </svg>
+          {shared ? 'LINK COPIED' : 'SHARE'}
+        </button>
+      </div>
 
       {/* ── language switcher ── */}
       {langCodes.length > 1 && (
