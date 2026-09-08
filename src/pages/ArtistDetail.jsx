@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { fetchData } from '../lib/api'
 import PostCard from '../components/PostCard'
 import Discussions from '../components/Discussions'
@@ -76,6 +76,8 @@ function TourCard({ tour: t }) {
 
 export default function ArtistDetail() {
   const { id } = useParams()
+  const [params] = useSearchParams()
+  const sharedPost = params.get('post')      // a shared link points at one post
   const [artist, setArtist] = useState(null)
   const [notFound, setNotFound] = useState(false)
   const [posts, setPosts] = useState([])
@@ -112,6 +114,19 @@ export default function ArtistDetail() {
       legs: t.legs.sort((a, b) => (a.event_date || '').localeCompare(b.event_date || '')),
     })).sort((a, b) => (a.legs[0]?.event_date || '').localeCompare(b.legs[0]?.event_date || ''))
   }, [events])
+
+  // A shared link opens on its post, so that post goes first.
+  const ordered = useMemo(() => {
+    if (!sharedPost) return posts
+    const hit = posts.find(p => p.id === sharedPost)
+    return hit ? [hit, ...posts.filter(p => p.id !== sharedPost)] : posts
+  }, [posts, sharedPost])
+
+  useEffect(() => {
+    if (!sharedPost || !posts.length) return
+    const el = document.getElementById('updates')
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [sharedPost, posts.length])
 
   if (notFound) return (
     <div className="wrap section" style={{ textAlign: 'center' }}>
@@ -220,12 +235,12 @@ export default function ArtistDetail() {
 
         {/* ── POSTS ── */}
         {posts.length > 0 && (
-          <section>
+          <section id="updates" style={{ scrollMarginTop: 90 }}>
             <div className="section-head">
               <h2 className="display" style={{ fontSize: 'clamp(1.5rem, 3.5vw, 2.2rem)' }}>Updates</h2>
             </div>
             <div style={{ display: 'grid', gap: 14, maxWidth: 620 }}>
-              {posts.slice(0, 10).map(p => <PostCard key={p.id} post={p} artist={artist} />)}
+              {ordered.slice(0, 10).map(p => <PostCard key={p.id} post={p} artist={artist} />)}
             </div>
           </section>
         )}

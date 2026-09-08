@@ -102,7 +102,7 @@ export default async (request) => {
     // Land on the artist's page when we know it, the feed otherwise.
     const link = f[CONFIG.F_ARTIST_LINK];
     const artistId = Array.isArray(link) ? link[0] : link;
-    const landing = artistId ? `${CONFIG.SITE}/artists/${artistId}` : fallback;
+    const landing = artistId ? `${CONFIG.SITE}/artists/${artistId}?post=${id}` : fallback;
 
     return new Response(
       page({
