@@ -19,6 +19,7 @@ export default function PostCard({ post, artist }) {
   const [lang, setLang] = useState(() => pickLanguage(segments, getPreferredLang()).code)
   const [expanded, setExpanded] = useState(false)
   const [imgOk, setImgOk] = useState(true)
+  const [lightbox, setLightbox] = useState(false)
 
   const { text } = lang && segments[lang]
     ? { text: segments[lang] }
@@ -29,6 +30,7 @@ export default function PostCard({ post, artist }) {
   const avatar = artist?.portal_avatar || artist?.image || ''
   const name = post.artist_name || artist?.name || ''
   const image = post.image_urls?.[0] || ''
+  const isVideo = /\.(mp4|mov|webm|m4v)(\?|$)/i.test(image)
 
   const switchLang = (code) => { setLang(code); setPreferredLang(code) }
 
@@ -93,10 +95,44 @@ export default function PostCard({ post, artist }) {
         </p>
       </div>
 
-      {/* ── image (only when healthy) ── */}
+      {/* ── media: photo or video ── */}
       {image && imgOk && (
-        <img src={image} alt="" loading="lazy" onError={() => setImgOk(false)}
-          style={{ width: '100%', maxHeight: 440, objectFit: 'cover' }} />
+        isVideo ? (
+          <video
+            src={image}
+            controls
+            playsInline
+            preload="metadata"
+            onError={() => setImgOk(false)}
+            style={{ width: '100%', maxHeight: 560, background: '#000', display: 'block' }}
+          />
+        ) : (
+          <img
+            src={image}
+            alt=""
+            loading="lazy"
+            onError={() => setImgOk(false)}
+            onClick={() => setLightbox(true)}
+            style={{
+              width: '100%', maxHeight: 560, objectFit: 'contain',
+              background: '#0A0A0D', display: 'block', cursor: 'zoom-in',
+            }}
+          />
+        )
+      )}
+
+      {/* full photo, click anywhere to close */}
+      {lightbox && !isVideo && (
+        <div
+          onClick={() => setLightbox(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1200,
+            background: 'rgba(5,5,8,0.92)', backdropFilter: 'blur(4px)',
+            display: 'grid', placeItems: 'center', padding: 20, cursor: 'zoom-out',
+          }}
+        >
+          <img src={image} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+        </div>
       )}
 
       {/* ── language switcher ── */}
