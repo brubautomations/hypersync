@@ -36,6 +36,7 @@ const RESOURCES = {
       id: r.id,
       title: r["Title"] || "",
       summary: r["Summary"] || "",
+      body: r["Body"] || "",
       url: r["URL"] || "",
       image: r["Image"] || "",
       source: r["Source"] || "",

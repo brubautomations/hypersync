@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { fetchData } from '../lib/api'
 import { useReveal } from '../lib/useReveal'
 import PostCard from '../components/PostCard'
@@ -46,14 +47,15 @@ function FeedCard({ item }) {
             </span>
           )}
           <span style={{ fontSize: '0.66rem', color: 'var(--faint)' }}>
-            {item.source ? `${item.source} · ` : ''}{timeAgo(item.when)}
+            {timeAgo(item.when)}
           </span>
         </div>
       </div>
     </article>
   )
+  // News opens on HYPERSYNC now, not on the source.
   return item.link
-    ? <a href={item.link} target="_blank" rel="noopener noreferrer" style={{ display: 'block', height: '100%' }}>{body}</a>
+    ? <Link to={item.link} style={{ display: 'block', height: '100%' }}>{body}</Link>
     : body
 }
 
@@ -85,7 +87,7 @@ export default function Feed() {
     const mapped = [
       ...news.map(n => ({
         kind: 'news', id: `n-${n.id}`, title: n.title, image: n.image,
-        artist: n.artist, source: n.source, link: n.url,
+        artist: n.artist, source: n.source, link: `/news/${n.id}`,
         when: n.created_at || n.published,
       })),
       ...(user ? posts.map(p => ({

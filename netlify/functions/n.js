@@ -16,7 +16,7 @@ const CONFIG = {
   FIELD_IMAGE: 'Image',
 
   SITE: 'https://hypersync.live',
-  LANDING: '/feed',
+  LANDING: '/news/',      // the article page; the record id is appended
 
   SITE_NAME: 'HYPERSYNC',
   FALLBACK_IMAGE: 'https://hypersync.live/og-image.png'
@@ -57,13 +57,13 @@ function page(title, description, image, selfUrl, landing) {
 }
 
 export default async (request) => {
-  const landing = CONFIG.SITE + CONFIG.LANDING;
   const id = new URL(request.url).pathname.split('/').filter(Boolean).pop();
 
   if (!id || !id.startsWith('rec')) {
-    return Response.redirect(landing, 302);
+    return Response.redirect(CONFIG.SITE + '/feed', 302);
   }
 
+  const landing = CONFIG.SITE + CONFIG.LANDING + id;
   const selfUrl = CONFIG.SITE + '/n/' + id;
 
   try {
