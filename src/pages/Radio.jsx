@@ -14,32 +14,10 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
      TUNE IN   volume   SCHEDULE
    ============================================================ */
 
-/* Two stations run from this one page.
-
-     /radio     the public station  — SONGS-V2
-     /ogradio   the original        — SONGS
-
-   Everything else (art, canvas, clocks, schedule) is identical. */
-
-const STATIONS = {
-  "/ogradio": {
-    STREAM: "https://radio.hypersync.live/stream",
-    NOW: "https://radio.hypersync.live/now",
-    SHOWS: "/api/station",
-  },
-  "/radio": {
-    STREAM: "https://radio.hypersync.live/v2/stream",
-    NOW: "https://radio.hypersync.live/v2/now",
-    SHOWS: "/api/station2",
-  },
-};
-
-const STATION =
-  STATIONS[typeof window !== "undefined" ? window.location.pathname : "/radio"] ||
-  STATIONS["/radio"];
-
 const CFG = {
-  ...STATION,
+  STREAM: "https://radio.hypersync.live/stream",
+  NOW: "https://radio.hypersync.live/now",
+  SHOWS: "/api/station",          // art, canvas and times still come from here
   NOW_EVERY: 8000,                // how often to ask what's playing
   LOGO: "/radio-logo.png",
 };
@@ -212,13 +190,23 @@ export default function Radio() {
       clearTimeout(timer);
       timer = setTimeout(rejoin, 1200);
     };
-    // `pause` covers the interruption case; the others cover a dropped
-    // connection. All of them funnel into the same single attempt.
-    const onPause = () => { if (liveRef.current && !rejoining.current) soon(); };
+    // `stalled` and `waiting` fire whenever the buffer dips — that is normal
+    // and the browser recovers on its own. Reconnecting on them threw away a
+    // healthy stream and rejoined at the live edge, which is heard as the
+    // audio jumping. Only reconnect when it has genuinely stopped: an error,
+    // or still paused several seconds after it should be playing.
+    const onPause = () => {
+      if (!liveRef.current || rejoining.current) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        // still stopped? then it's real
+        if (liveRef.current && a.paused) rejoin();
+      }, 4000);
+    };
+    const onPlaying = () => { clearTimeout(timer); };
     a.addEventListener("pause", onPause);
     a.addEventListener("error", soon);
-    a.addEventListener("stalled", soon);
-    a.addEventListener("ended", soon);
+    a.addEventListener("playing", onPlaying);
     const wake = () => {
       if (document.visibilityState === "hidden") return;
       if (liveRef.current && a.paused) rejoin();
@@ -229,8 +217,7 @@ export default function Radio() {
       clearTimeout(timer);
       a.removeEventListener("pause", onPause);
       a.removeEventListener("error", soon);
-      a.removeEventListener("stalled", soon);
-      a.removeEventListener("ended", soon);
+      a.removeEventListener("playing", onPlaying);
       document.removeEventListener("visibilitychange", wake);
       window.removeEventListener("focus", wake);
     };
